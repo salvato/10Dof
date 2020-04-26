@@ -28,12 +28,16 @@ SOURCES += main.cpp\
     FIMU_ADXL345.cpp \
     FIMU_ITG3200.cpp \
     FreeSixIMU.cpp \
-    HMC5883L.cpp
+    HMC5883L.cpp \
+    MadgwickAHRS.cpp \
+    MahonyAHRS.cpp
 
 HEADERS  += mainwindow.h \
     FIMU_ADXL345.h \
     FIMU_ITG3200.h \
     FreeSixIMU.h \
-    HMC5883L.h
+    HMC5883L.h \
+    MadgwickAHRS.h \
+    MahonyAHRS.h
 
 FORMS    += mainwindow.ui

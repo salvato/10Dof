@@ -1,4 +1,5 @@
 /*
+ *
 FreeSixIMU.cpp - A libre and easy to use orientation sensing library for Arduino
 Copyright (C) 2011 Fabio Varesano <fabio at varesano dot net>
 
@@ -21,32 +22,37 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-#include <inttypes.h>
 // #define DEBUG
+
+#include <inttypes.h>
 #include "FreeSixIMU.h"
 #include <cmath>
+#include <QDebug>
 #include <QThread>
-
-// #include "WireUtils.h"
-// #include "DebugUtils.h"
 
 
 FreeSixIMU::FreeSixIMU() {
-    acc = ADXL345();
-    gyro = ITG3200();
-    //magn = HMC58X3();
+    pAcc  = new ADXL345();
+    pGyro = new ITG3200();
+    pMagn = new HMC5883L();
 
     // initialize quaternion
     q0 = 1.0f;
     q1 = 0.0f;
     q2 = 0.0f;
     q3 = 0.0f;
+
     exInt = 0.0;
     eyInt = 0.0;
     ezInt = 0.0;
+
     twoKp = twoKpDef;
     twoKi = twoKiDef;
-    integralFBx = 0.0f,  integralFBy = 0.0f, integralFBz = 0.0f;
+
+    integralFBx = 0.0f;
+    integralFBy = 0.0f;
+    integralFBz = 0.0f;
+
     lastUpdate = 0;
     now = 0;
 }
@@ -65,7 +71,7 @@ FreeSixIMU::init(bool fastmode) {
 
 
 void
-FreeSixIMU::init(int acc_addr, int gyro_addr, bool fastmode) {
+FreeSixIMU::init(int16_t acc_addr, int16_t gyro_addr, bool fastmode) {
     QThread::msleep(5);
 
     if(fastmode) { // switch to 400KHz I2C - eheheh
@@ -73,60 +79,61 @@ FreeSixIMU::init(int acc_addr, int gyro_addr, bool fastmode) {
     }
 
     // init ADXL345
-    acc.init(acc_addr);
-
+    pAcc->init(acc_addr);
 
     // init ITG3200
-    gyro.init(gyro_addr);
+    pGyro->init(gyro_addr);
     QThread::msleep(1000);
     // calibrate the ITG3200
-    gyro.zeroCalibrate(128,5);
+    pGyro->zeroCalibrate(128, 5);
 
-    // init HMC5843
-    //magn.init(false); // Don't set mode yet, we'll do that later on.
-    // Calibrate HMC using self test, not recommended to change the gain after calibration.
-    //magn.calibrate(1); // Use gain 1=default, valid 0-7, 7 not recommended.
-    // Single mode conversion was used in calibration, now set continuous mode
-    //magn.setMode(0);
-    //delay(10);
-    //magn.setDOR(B110);
+    // init HMC5883L
+    int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss of the compass.
+    if(error != 0) // If there is an error, print it out.
+        qDebug() << pMagn->GetErrorText(error);
+    error = pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
+    if(error != 0) // If there is an error, print it out.
+        qDebug() << pMagn->GetErrorText(error);
 
+    QThread::msleep(10);
 }
 
 
 void
-FreeSixIMU::getRawValues(int * raw_values) {
-    acc.readAccel(&raw_values[0], &raw_values[1], &raw_values[2]);
-    gyro.readGyroRaw(&raw_values[3], &raw_values[4], &raw_values[5]);
-    //magn.getValues(&raw_values[6], &raw_values[7], &raw_values[8]);
-
+FreeSixIMU::getRawValues(int16_t* raw_values) {
+    pAcc->readAccel(&raw_values[0], &raw_values[1], &raw_values[2]);
+    pGyro->readGyroRaw(&raw_values[3], &raw_values[4], &raw_values[5]);
+    MagnetometerRaw magRaw;
+    pMagn->ReadRawAxis(&magRaw);
+    raw_values[6] = magRaw.XAxis;
+    raw_values[7] = magRaw.YAxis;
+    raw_values[8] = magRaw.ZAxis;
 }
 
 
 void
-FreeSixIMU::getValues(float * values) {
-    int accval[3];
-    acc.readAccel(&accval[0], &accval[1], &accval[2]);
-    values[0] = ((float) accval[0]);
-    values[1] = ((float) accval[1]);
-    values[2] = ((float) accval[2]);
-
-    gyro.readGyro(&values[3]);
-
-    //magn.getValues(&values[6]);
+FreeSixIMU::getValues(float* values) {
+    pAcc->get_Gxyz(&values[0]);
+    pGyro->readGyro(&values[3]);
+    pMagn->ReadScaledAxis(&values[6]);
 }
 
 
+//=====================================================================================================
 // Quaternion implementation of the 'DCM filter' [Mayhony et al].
-// Incorporates the magnetic distortion compensation algorithms from Sebastian Madgwick
-// filter which eliminates the need for a reference direction of flux (bx bz)
-// to be predefined and limits the effect of magnetic distortions to yaw axis only.
+// Incorporates the magnetic distortion compensation algorithms
+// from Sebastian Madgwick filter which eliminates the need for
+// a reference direction of flux (bx bz) to be predefined and
+// limits the effect of magnetic distortions to yaw axis only.
 //
 // See: http://www.x-io.co.uk/node/8#open_source_ahrs_and_imu_algorithms
 //
 //=====================================================================================================
 void
-FreeSixIMU::AHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz) {
+FreeSixIMU::AHRSupdate(float gx, float gy, float gz,
+                       float ax, float ay, float az,
+                       float mx, float my, float mz)
+{
     float recipNorm;
     float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
     float halfex = 0.0f, halfey = 0.0f, halfez = 0.0f;
@@ -144,36 +151,34 @@ FreeSixIMU::AHRSupdate(float gx, float gy, float gz, float ax, float ay, float a
     q2q3 = q2 * q3;
     q3q3 = q3 * q3;
 
+    // Use magnetometer measurement only when valid (avoids NaN in magnetometer normalisation)
+    if((mx != 0.0f) && (my != 0.0f) && (mz != 0.0f)) {
+        float hx, hy, bx, bz;
+        float halfwx, halfwy, halfwz;
 
-    /*
-  // Use magnetometer measurement only when valid (avoids NaN in magnetometer normalisation)
-  if((mx != 0.0f) && (my != 0.0f) && (mz != 0.0f)) {
-    float hx, hy, bx, bz;
-    float halfwx, halfwy, halfwz;
-    
-    // Normalise magnetometer measurement
-    recipNorm = invSqrt(mx * mx + my * my + mz * mz);
-    mx *= recipNorm;
-    my *= recipNorm;
-    mz *= recipNorm;
-    
-    // Reference direction of Earth's magnetic field
-    hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
-    hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz * (q2q3 - q0q1));
-    bx = sqrt(hx * hx + hy * hy);
-    bz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f - q1q1 - q2q2));
-    
-    // Estimated direction of magnetic field
-    halfwx = bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2);
-    halfwy = bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3);
-    halfwz = bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2);
-    
-    // Error is sum of cross product between estimated direction and measured direction of field vectors
-    halfex = (my * halfwz - mz * halfwy);
-    halfey = (mz * halfwx - mx * halfwz);
-    halfez = (mx * halfwy - my * halfwx);
-  }
-  */
+        // Normalise magnetometer measurement
+        recipNorm = invSqrt(mx * mx + my * my + mz * mz);
+        mx *= recipNorm;
+        my *= recipNorm;
+        mz *= recipNorm;
+
+        // Reference direction of Earth's magnetic field
+        hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
+        hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz * (q2q3 - q0q1));
+        bx = sqrt(hx * hx + hy * hy);
+        bz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f - q1q1 - q2q2));
+
+        // Estimated direction of magnetic field
+        halfwx = bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2);
+        halfwy = bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3);
+        halfwz = bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2);
+
+        // Error is sum of cross product between estimated direction and measured direction of field vectors
+        halfex = (my * halfwz - mz * halfwy);
+        halfey = (mz * halfwx - mx * halfwz);
+        halfez = (mx * halfwy - my * halfwx);
+    }
+
 
     // Compute feedback only if accelerometer measurement valid (avoids NaN in accelerometer normalisation)
     if((ax != 0.0f) && (ay != 0.0f) && (az != 0.0f)) {
@@ -241,30 +246,36 @@ FreeSixIMU::AHRSupdate(float gx, float gy, float gz, float ax, float ay, float a
 
 
 void
-FreeSixIMU::getQ(float * q) {
+FreeSixIMU::getQ(float* q) {
     float val[9];
     getValues(val);
 
-    /*
-  DEBUG_PRINT(val[3] * M_PI/180);
-  DEBUG_PRINT(val[4] * M_PI/180);
-  DEBUG_PRINT(val[5] * M_PI/180);
-  DEBUG_PRINT(val[0]);
-  DEBUG_PRINT(val[1]);
-  DEBUG_PRINT(val[2]);
-  DEBUG_PRINT(val[6]);
-  DEBUG_PRINT(val[7]);
-  DEBUG_PRINT(val[8]);
-  */
-
+/*
+    DEBUG_PRINT(val[3] * M_PI/180);
+    DEBUG_PRINT(val[4] * M_PI/180);
+    DEBUG_PRINT(val[5] * M_PI/180);
+    DEBUG_PRINT(val[0]);
+    DEBUG_PRINT(val[1]);
+    DEBUG_PRINT(val[2]);
+    DEBUG_PRINT(val[6]);
+    DEBUG_PRINT(val[7]);
+    DEBUG_PRINT(val[8]);
+*/
 
     now = micros();
-    sampleFreq = 1.0 / ((now - lastUpdate) / 1000000.0);
+    sampleFreq = 1.0/((now-lastUpdate)/1000000.0);
+    qDebug() << sampleFreq;
     lastUpdate = now;
+
     // gyro values are expressed in deg/sec, the * M_PI/180 will convert it to radians/sec
-    //AHRSupdate(val[3] * M_PI/180, val[4] * M_PI/180, val[5] * M_PI/180, val[0], val[1], val[2], val[6], val[7], val[8]);
+//    AHRSupdate(val[3]*M_PI/180, val[4]*M_PI/180, val[5]*M_PI/180,
+//               val[0],          val[1],          val[2],
+//               val[6],          val[7],          val[8]);
+
     // use the call below when using a 6DOF IMU
-    AHRSupdate(val[3] * M_PI/180, val[4] * M_PI/180, val[5] * M_PI/180, val[0], val[1], val[2], 0, 0, 0);
+    AHRSupdate(val[3]*M_PI/180, val[4]*M_PI/180, val[5]*M_PI/180,
+               val[0],          val[1],          val[2],
+                    0,               0,               0);
     q[0] = q0;
     q[1] = q1;
     q[2] = q2;
@@ -272,17 +283,19 @@ FreeSixIMU::getQ(float * q) {
 }
 
 
+//=====================================================================================================
 // Returns the Euler angles in radians defined with the Aerospace sequence.
 // See Sebastian O.H. Madwick report 
 // "An efficient orientation filter for inertial and intertial/magnetic sensor arrays"
 // Chapter 2 Quaternion representation
+//=====================================================================================================
 void
 FreeSixIMU::getEuler(float * angles) {
     float q[4]; // quaternion
     getQ(q);
-    angles[0] = atan2(2 * q[1] * q[2] - 2 * q[0] * q[3], 2 * q[0]*q[0] + 2 * q[1] * q[1] - 1) * 180/M_PI; // psi
-    angles[1] = -asin(2 * q[1] * q[3] + 2 * q[0] * q[2]) * 180/M_PI; // theta
-    angles[2] = atan2(2 * q[2] * q[3] - 2 * q[0] * q[1], 2 * q[0] * q[0] + 2 * q[3] * q[3] - 1) * 180/M_PI; // phi
+    angles[0] =  atan2(2*q[1]*q[2] - 2*q[0]*q[3], 2*q[0]*q[0] + 2*q[1]*q[1] - 1) * 180/M_PI; // psi
+    angles[1] = -asin (2*q[1]*q[3] + 2*q[0]*q[2])                                * 180/M_PI; // theta
+    angles[2] =  atan2(2*q[2]*q[3] - 2*q[0]*q[1], 2*q[0]*q[0] + 2*q[3]*q[3] - 1) * 180/M_PI; // phi
 }
 
 
@@ -298,7 +311,6 @@ FreeSixIMU::getAngles(float * angles) {
     if(angles[0] < 0)angles[0] += 360;
     if(angles[1] < 0)angles[1] += 360;
     if(angles[2] < 0)angles[2] += 360;
-
 }
 
 
@@ -319,7 +331,7 @@ FreeSixIMU::getYawPitchRoll(float * ypr) {
 
 
 float
-invSqrt(float number) {
+FreeSixIMU::invSqrt(float number) {
     volatile long i;
     volatile float x, y;
     volatile const float f = 1.5F;

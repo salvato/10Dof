@@ -21,71 +21,71 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-#define write_I2C(args) Wire.send(args)
-#define read_I2C() Wire.receive()
-
 
 #include "HMC5883L.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
+#include <QDebug>
+
+
+#define NoError         0
+#define ErrorCode_1_Num 1
+const char* ErrorCode_1 = "Entered scale was not valid, valid gauss values are: 0.88, 1.3, 1.9, 2.5, 4.0, 4.7, 5.6, 8.1";
 
 
 HMC5883L::HMC5883L() {
     m_Scale = 1;
+    if(!isConnected()) {
+        qDebug() << "Error the Magnetometer does not respond: exiting";
+        exit(EXIT_FAILURE);
+    }
 }
 
 
-MagnetometerRaw
-HMC5883L::ReadRawAxis() {
-    uint8_t* buffer = Read(DataRegisterBegin, 6);
-    MagnetometerRaw raw = MagnetometerRaw();
-    raw.XAxis = (buffer[0] << 8) | buffer[1];
-    raw.ZAxis = (buffer[2] << 8) | buffer[3];
-    raw.YAxis = (buffer[4] << 8) | buffer[5];
-    return raw;
-}
-
-MagnetometerScaled
-HMC5883L::ReadScaledAxis() {
-    MagnetometerRaw raw = ReadRawAxis();
-    MagnetometerScaled scaled = MagnetometerScaled();
-    scaled.XAxis = raw.XAxis * m_Scale;
-    scaled.ZAxis = raw.ZAxis * m_Scale;
-    scaled.YAxis = raw.YAxis * m_Scale;
-    return scaled;
+bool
+HMC5883L::isConnected() {
+    uint8_t data = 0;
+    Read(IdentityRegister, 1, &data);
+    if(data == IdentityRegisterValue)
+        return true;
+    else
+        return false;
 }
 
 
-int
-HMC5883L::SetScale(float gauss) {
+int16_t HMC5883L::SetScale(int16_t milliGauss) {
     uint8_t regValue = 0x00;
-    if(gauss == 0.88) {
+    if(milliGauss == 880) {
         regValue = 0x00;
         m_Scale = 0.73;
     }
-    else if(gauss == 1.3) {
+    else if(milliGauss == 1300) {
         regValue = 0x01;
         m_Scale = 0.92;
     }
-    else if(gauss == 1.9) {
+    else if(milliGauss == 1900) {
         regValue = 0x02;
         m_Scale = 1.22;
     }
-    else if(gauss == 2.5) {
+    else if(milliGauss == 2500) {
         regValue = 0x03;
         m_Scale = 1.52;
     }
-    else if(gauss == 4.0) {
+    else if(milliGauss == 4000) {
         regValue = 0x04;
         m_Scale = 2.27;
     }
-    else if(gauss == 4.7) {
+    else if(milliGauss == 4700) {
         regValue = 0x05;
         m_Scale = 2.56;
     }
-    else if(gauss == 5.6) {
+    else if(milliGauss == 5600) {
         regValue = 0x06;
         m_Scale = 3.03;
     }
-    else if(gauss == 8.1) {
+    else if(milliGauss == 8100) {
         regValue = 0x07;
         m_Scale = 4.35;
     }
@@ -95,61 +95,106 @@ HMC5883L::SetScale(float gauss) {
     // Setting is in the top 3 bits of the register.
     regValue = regValue << 5;
     Write(ConfigurationRegisterB, regValue);
+    return NoError;
 }
 
 
-int
+int16_t
 HMC5883L::SetMeasurementMode(uint8_t mode) {
     Write(ModeRegister, mode);
-}
-
-
-uint8_t
-HMC5883L::EnsureConnected() {
-    uint8_t data = Read(IdentityRegister, 1)[0];
-
-    if(data == IdentityRegisterValue)
-        IsConnected = 1;
-    else
-        IsConnected = 0;
-
-    return IsConnected;
+    return NoError;
 }
 
 
 void
-HMC5883L::Write(int address, int data) {
-    Wire.beginTransmission(HMC5883L_Address);
-    write_I2C(address);
-    write_I2C(data);
-    Wire.endTransmission();
+HMC5883L::ReadRawAxis(MagnetometerRaw* raw) {
+    uint8_t buffer[6];
+    Read(DataRegisterBegin, 6, buffer);
+    raw->XAxis = (buffer[0] << 8) | buffer[1];
+    raw->ZAxis = (buffer[2] << 8) | buffer[3];
+    raw->YAxis = (buffer[4] << 8) | buffer[5];
 }
 
 
-uint8_t*
-HMC5883L::Read(int address, int length) {
-    Wire.beginTransmission(HMC5883L_Address);
-    write_I2C(address);
-    Wire.endTransmission();
+void
+HMC5883L::ReadScaledAxis(MagnetometerScaled* scaled) {
+    MagnetometerRaw raw;
+    ReadRawAxis(&raw);
+    scaled->XAxis = raw.XAxis * m_Scale;
+    scaled->ZAxis = raw.ZAxis * m_Scale;
+    scaled->YAxis = raw.YAxis * m_Scale;
+}
 
-    Wire.beginTransmission(HMC5883L_Address);
-    Wire.requestFrom(HMC5883L_Address, length);
 
-    uint8_t buffer[length];
-    if(Wire.available() == length) {
-        for(uint8_t i=0; i<length; i++) {
-            buffer[i] = read_I2C();
-        }
+void
+HMC5883L::ReadScaledAxis(float* value) {
+    MagnetometerRaw raw;
+    ReadRawAxis(&raw);
+    value[0] = raw.XAxis * m_Scale;
+    value[1] = raw.ZAxis * m_Scale;
+    value[2] = raw.YAxis * m_Scale;
+}
+
+
+void
+HMC5883L::Write(uint8_t address, uint8_t val) {
+    // open device on /dev/i2c-1
+    int fd;
+    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
+      qDebug() << QString("HMC5883L Error: Couldn't open device! %1").arg(fd);
+      exit(-1);
     }
-    Wire.endTransmission();
+    if(ioctl(fd, I2C_SLAVE, HMC5883L_Address) == -1) {
+        qDebug() << "HMC5883L Error in ioctl()";
+        exit(-1);
+    }
 
-    return buffer;
+    std::array<uint8_t, 2> data{address, val};
+    if(write(fd, data.data(), data.size()) != data.size()) {
+        std::string what( "write " __FILE__ "("
+                        + std::to_string(__LINE__)
+                        + ")" );
+        qDebug() << what.c_str();
+        exit(-1);
+    }
+    close(fd);
 }
 
 
-char*
-HMC5883L::GetErrorText(int errorCode) {
-    if(ErrorCode_1_Num == 1)
+void
+HMC5883L::Read(uint8_t address, int16_t length, uint8_t* buffer) {
+    // open device on /dev/i2c-1
+    int fd;
+    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
+      qDebug() << QString("HMC5883L Error: Couldn't open device! %1").arg(fd);
+      exit(-1);
+    }
+    if(ioctl(fd, I2C_SLAVE, HMC5883L_Address) == -1) {
+        qDebug() << "HMC5883L Error in ioctl()";
+        exit(-1);
+    }
+
+    if(write(fd, &address, 1) != 1) {
+        std::string what( "write " __FILE__ "("
+                        + std::to_string(__LINE__)
+                        + ")" );
+        qDebug() << what.c_str();
+        exit(-1);
+    }
+    if(read(fd, buffer, length) != length) {
+        std::string what( "write " __FILE__ "("
+                        + std::to_string(__LINE__)
+                        + ")" );
+        qDebug() << what.c_str();
+        exit(-1);
+    }
+    close(fd);
+}
+
+
+const char*
+HMC5883L::GetErrorText(int16_t errorCode) {
+    if(ErrorCode_1_Num == errorCode)
         return ErrorCode_1;
 
     return "Error not defined.";

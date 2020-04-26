@@ -21,14 +21,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+#ifndef FreeSixIMU_h
+#define FreeSixIMU_h
+
+
 #include <FIMU_ADXL345.h>
 #define FIMU_ACC_ADDR ADXL345_ADDR_ALT_LOW // SDO connected to GND
 #include <FIMU_ITG3200.h>
+#include <HMC5883L.h>
+
 #include <sys/time.h>
 
-
-#ifndef FreeSixIMU_h
-#define FreeSixIMU_h
 
 
 #define FIMU_BMA180_DEF_ADDR BMA180_ADDRESS_SDO_LOW
@@ -49,8 +52,8 @@ class FreeSixIMU
     FreeSixIMU();
     void init();
     void init(bool fastmode);
-    void init(int acc_addr, int gyro_addr, bool fastmode);
-    void getRawValues(int * raw_values);
+    void init(int16_t acc_addr, int16_t gyro_addr, bool fastmode);
+    void getRawValues(int16_t *raw_values);
     void getValues(float * values);
     void getQ(float * q);
     void getEuler(float * angles);
@@ -58,30 +61,32 @@ class FreeSixIMU
     void getAngles(float * angles);
     
     
-	ADXL345 acc;
-    ITG3200 gyro;
+    ADXL345* pAcc;
+    ITG3200* pGyro;
+    HMC5883L* pMagn;
+
     
     int* raw_acc, raw_gyro, raw_magn;
     
   private:
     void AHRSupdate(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
-    //float q0, q1, q2, q3; // quaternion elements representing the estimated orientation
+    //float q0, q1, q2, q3;          // quaternion elements representing the estimated orientation
     float iq0, iq1, iq2, iq3;
-    float exInt, eyInt, ezInt;  // scaled integral error
-    volatile float twoKp;      // 2 * proportional gain (Kp)
-    volatile float twoKi;      // 2 * integral gain (Ki)
+    float exInt, eyInt, ezInt;     // scaled integral error
+    volatile float twoKp;          // 2 * proportional gain (Kp)
+    volatile float twoKi;          // 2 * integral gain (Ki)
     volatile float q0, q1, q2, q3; // quaternion of sensor frame relative to auxiliary frame
     volatile float integralFBx,  integralFBy, integralFBz;
     unsigned long lastUpdate, now; // sample period expressed in milliseconds
-    float sampleFreq; // half the sample period expressed in seconds
+    float sampleFreq;              // half the sample period expressed in seconds
     int startLoopTime;
     uint64_t micros() {
         struct timeval tv;
         gettimeofday(&tv, nullptr);
         return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
     }
+    float invSqrt(float number);
 };
 
-float invSqrt(float number);
 
 #endif // FreeSixIMU_h

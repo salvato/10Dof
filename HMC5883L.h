@@ -24,25 +24,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef HMC5883L_h
 #define HMC5883L_h
 
+
 #include <inttypes.h>
 
-#define printByte(args) Serial.write(args)
-#define printlnByte(args)  Serial.write(args),Serial.println()
 
-#define HMC5883L_Address 0x1E
+#define HMC5883L_Address       0x1E
+
 #define ConfigurationRegisterA 0x00
 #define ConfigurationRegisterB 0x01
-#define ModeRegister 0x02
-#define DataRegisterBegin 0x03
-#define IdentityRegister 0x0A
-#define IdentityRegisterValue 0x48
+#define ModeRegister           0x02
+#define DataRegisterBegin      0x03
+#define IdentityRegister       0x0A
+#define IdentityRegisterValue  0x48
 
 #define Measurement_Continuous 0x00
 #define Measurement_SingleShot 0x01
-#define Measurement_Idle 0x03
+#define Measurement_Idle       0x03
 
-#define ErrorCode_1 "Entered scale was not valid, valid gauss values are: 0.88, 1.3, 1.9, 2.5, 4.0, 4.7, 5.6, 8.1"
-#define ErrorCode_1_Num 1
 
 struct MagnetometerScaled
 {
@@ -51,32 +49,34 @@ struct MagnetometerScaled
     float ZAxis;
 };
 
+
 struct MagnetometerRaw
 {
-    int XAxis;
-    int YAxis;
-    int ZAxis;
+    int16_t XAxis;
+    int16_t YAxis;
+    int16_t ZAxis;
 };
+
 
 class HMC5883L
 {
 public:
     HMC5883L();
 
-    MagnetometerRaw ReadRawAxis();
-    MagnetometerScaled ReadScaledAxis();
+    void ReadRawAxis(MagnetometerRaw *raw);
+    void ReadScaledAxis(MagnetometerScaled *scaled);
+    void ReadScaledAxis(float* value);
 
-    int SetMeasurementMode(uint8_t mode);
-    int SetScale(float gauss);
+    int16_t SetMeasurementMode(uint8_t mode);
+    int16_t SetScale(int16_t milliGauss);
 
-    char* GetErrorText(int errorCode);
+    const char *GetErrorText(int16_t errorCode);
 
-    uint8_t EnsureConnected();
-    uint8_t IsConnected;
+    bool isConnected();
 
 protected:
-    void Write(int address, int byte);
-    uint8_t* Read(int address, int length);
+    void Write(uint8_t address, uint8_t val);
+    void Read(uint8_t address, int16_t length, uint8_t *buffer);
 
 private:
     float m_Scale;

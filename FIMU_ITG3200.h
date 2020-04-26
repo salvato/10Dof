@@ -116,18 +116,18 @@ class ITG3200 {
 
 public:
     float gains[3];
-    int offsets[3];
+    int16_t offsets[3];
     float polarities[3];
 
     ITG3200();
 
     // Gyro initialization
-    void init(unsigned int address);
-    void init(unsigned int address, byte _SRateDiv, byte _Range, byte _filterBW, byte _ClockSrc, bool _ITGReady, bool _INTRawDataReady);
+    void init(uint16_t address);
+    void init(uint16_t address, byte _SRateDiv, byte _Range, byte _filterBW, byte _ClockSrc, bool _ITGReady, bool _INTRawDataReady);
     
     // Who Am I
     byte getDevAddr();
-    void setDevAddr(unsigned int _addr);
+    void setDevAddr(uint16_t _addr);
     // Sample Rate Divider
     byte getSampleRateDiv();
     void setSampleRateDiv(byte _SampleRate);
@@ -158,14 +158,14 @@ public:
     bool isRawDataReady();
     // Gyro Sensors
     void readTemp(float *_Temp);
-    void readGyroRaw(int  *_GyroXYZ);
-    void readGyroRaw(int *_GyroX, int *_GyroY, int *_GyroZ);
+    void readGyroRaw(int16_t *_GyroXYZ);
+    void readGyroRaw(int16_t*_GyroX, int16_t*_GyroY, int16_t*_GyroZ);
     void setRevPolarity(bool _Xpol, bool _Ypol, bool _Zpol);	// true = Reversed  false = default
     void setGains(float _Xgain, float _Ygain, float _Zgain);
-    void setOffsets(int _Xoffset, int _Yoffset, int _Zoffset);
-    void zeroCalibrate(unsigned int totSamples, unsigned int sampleDelayMS);	// assuming gyroscope is stationary (updates XYZ offsets for zero)
-    void readGyroRawCal(int *_GyroX, int *_GyroY, int *_GyroZ);
-    void readGyroRawCal(int *_GyroXYZ);
+    void setOffsets(int16_t _Xoffset, int16_t _Yoffset, int16_t _Zoffset);
+    void zeroCalibrate(uint16_t totSamples, uint16_t sampleDelayMS);	// assuming gyroscope is stationary (updates XYZ offsets for zero)
+    void readGyroRawCal(int16_t *_GyroX, int16_t *_GyroY, int16_t *_GyroZ);
+    void readGyroRawCal(int16_t *_GyroXYZ);
     void readGyro(float *_GyroXYZ); // includes gain and offset
     void readGyro(float *_GyroX, float *_GyroY, float *_GyroZ); // includes gain and offset
     // Power management
