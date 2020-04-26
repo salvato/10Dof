@@ -8,6 +8,7 @@
 #include <FIMU_ADXL345.h>
 #include <FIMU_ITG3200.h>
 #include <HMC5883L.h>
+#include <MadgwickAHRS.h>
 
 
 namespace Ui {
@@ -42,7 +43,7 @@ private:
 
     // Set the FreeSixIMU object
     FreeSixIMU* pSixDOF;
-//    HMC5883L* pCompass;
+    Madgwick* pMadgwick;
 
     // Record any errors that may occur in the compass.
     int error;
