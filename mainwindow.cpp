@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QDebug>
+#include <QThread>
 
 #include <cmath>
 
@@ -15,21 +16,44 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
-    , pSixDOF(nullptr)
 {
     ui->setupUi(this);
 
-    pSixDOF  = new FreeSixIMU();
-    pSixDOF->init(); // init the Acc, Gyro and Magn
+    pAcc  = new ADXL345(); // init ADXL345
+    pAcc->init(FIMU_ACC_ADDR);
 
-    // delay(5);
+    pGyro = new ITG3200(); // init ITG3200
+    pGyro->init(FIMU_ITG3200_DEF_ADDR);
+    QThread::msleep(1000);
+    pGyro->zeroCalibrate(128, 5); // calibrate the ITG3200
+
+
+    pMagn = new HMC5883L();// init HMC5883L
+    int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
+    if(error != 0) {
+        qDebug() << pMagn->GetErrorText(error);
+        exit(EXIT_FAILURE);
+    }
+    error = pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
+    if(error != 0)  {
+        qDebug() << pMagn->GetErrorText(error);
+        exit(EXIT_FAILURE);
+    }
 
     //bmp085Calibration(); // init barometric pressure sensor
+
+    pMadgwick = new Madgwick();
+
+    sampleFrequency = 200;
+    pMadgwick->begin(sampleFrequency);
 
     connect(&loopTimer, SIGNAL(timeout()),
             this, SLOT(onLoopTimeElapsed()));
 
-    loopTimer.start(2);
+    lastUpdate = micros();
+    now = 0;
+    loopTimer.setTimerType(Qt::PreciseTimer);
+    loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
 }
 
 
@@ -40,83 +64,26 @@ MainWindow::~MainWindow() {
 
 void
 MainWindow::onLoopTimeElapsed() {
-    pSixDOF->getEuler(angles);
-    ui->psiEdit->setText(QString("%1").arg(angles[0], 0, 'f', 1));
-    ui->thetaEdit->setText(QString("%1").arg(angles[1], 0, 'f', 1));
-    ui->phiEdit->setText(QString("%1").arg(angles[2], 0, 'f', 1));
+    now = micros();
+    pMadgwick->setInvFreq(float(now-lastUpdate)/1000000.f);
+    lastUpdate = now;
 
-//    temperature = bmp085GetTemperature(bmp085ReadUT());
-//    pressure = bmp085GetPressure(bmp085ReadUP());
-/*
-    getHeading();
-    ui->headingEdit->setText(QString("%1").arg(heading));
+    pAcc->get_Gxyz(&values[0]);
+    pGyro->readGyro(&values[3]);
+    pMagn->ReadScaledAxis(&values[6]);
 
-    bool showRaw = false;
+    pMadgwick->update(values[3], values[4], values[5],
+                      values[0], values[1], values[2],
+                      values[6], values[7], values[8]);
 
-    if(showRaw) {
-        int16_t raw_values[9];
-        pSixDOF->getRawValues(raw_values);
+//    pMadgwick->updateIMU(values[3], values[4], values[5],
+//                         values[0], values[1], values[2]);
 
-        ui->XaccEdit->setText(QString("%1").arg(raw_values[0]));
-        ui->YaccEdit->setText(QString("%1").arg(raw_values[1]));
-        ui->ZaccEdit->setText(QString("%1").arg(raw_values[2]));
-
-        ui->XgyroEdit->setText(QString("%1").arg(raw_values[3]));
-        ui->YgyroEdit->setText(QString("%1").arg(raw_values[4]));
-        ui->ZgyroEdit->setText(QString("%1").arg(raw_values[5]));
-
-        ui->XmagEdit->setText(QString("%1").arg(raw_values[6]));
-        ui->YmagEdit->setText(QString("%1").arg(raw_values[7]));
-        ui->ZmagEdit->setText(QString("%1").arg(raw_values[8]));
+    nUpdate++;
+    nUpdate = nUpdate % 100;
+    if(nUpdate == 0) {
+        ui->psiEdit->setText(QString("%1").arg(pMadgwick->getRoll(), 0, 'f', 1));
+        ui->thetaEdit->setText(QString("%1").arg(pMadgwick->getPitch(), 0, 'f', 1));
+        ui->phiEdit->setText(QString("%1").arg(pMadgwick->getYaw(), 0, 'f', 1));
     }
-    else {
-        float   values[9];
-        pSixDOF->getValues(values);
-
-        ui->XaccEdit->setText(QString("%1").arg(values[0], 0, 'f', 1));
-        ui->YaccEdit->setText(QString("%1").arg(values[1], 0, 'f', 1));
-        ui->ZaccEdit->setText(QString("%1").arg(values[2], 0, 'f', 1));
-
-        ui->XgyroEdit->setText(QString("%1").arg(values[3], 0, 'f', 1));
-        ui->YgyroEdit->setText(QString("%1").arg(values[4], 0, 'f', 1));
-        ui->ZgyroEdit->setText(QString("%1").arg(values[5], 0, 'f', 1));
-
-        ui->XmagEdit->setText(QString("%1").arg(values[6], 0, 'f', 1));
-        ui->YmagEdit->setText(QString("%1").arg(values[7], 0, 'f', 1));
-        ui->ZmagEdit->setText(QString("%1").arg(values[8], 0, 'f', 1));
-    }
-
-    //    PrintData();
-*/
-}
-
-void
-MainWindow::getHeading() {
-    // Retrived the scaled values from the compass (scaled to the configured scale).
-    float   values[9];
-    pSixDOF->getValues(values);
-
-    // Calculate heading when the magnetometer is level, then correct for signs of axis.
-    heading = atan2(values[7], values[6]);
-
-    float declinationAngle = 0.0457;
-    heading += declinationAngle;
-
-    // Correct for when signs are reversed.
-    if(heading < 0)
-        heading += 2*M_PI;
-
-    // Check for wrap due to addition of declination.
-    if(heading > 2*M_PI)
-        heading -= 2*M_PI;
-
-    // Convert radians to degrees for readability.
-    heading = heading * 180/M_PI;
-}
-
-
-void
-MainWindow::PrintData() {
-
-//    qDebug() << "Pressure: " << pressure << " Pa";
 }

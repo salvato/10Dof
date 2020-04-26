@@ -4,11 +4,18 @@
 #include <QMainWindow>
 #include <QTimer>
 
-#include <FreeSixIMU.h>
 #include <FIMU_ADXL345.h>
 #include <FIMU_ITG3200.h>
 #include <HMC5883L.h>
 #include <MadgwickAHRS.h>
+
+#include <sys/time.h>
+
+
+#define FIMU_ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
+//#define FIMU_BMA180_DEF_ADDR BMA180_ADDRESS_SDO_LOW
+#define FIMU_ITG3200_DEF_ADDR ITG3200_ADDR_AD0_LOW  // AD0 connected to GND
+// HMC5843 address is fixed so don't bother to define it
 
 
 namespace Ui {
@@ -28,25 +35,34 @@ public slots:
     void onLoopTimeElapsed();
 
 protected:
-    void getHeading();
-    void PrintData();
 
 private:
     Ui::MainWindow *ui;
     QTimer loopTimer;
 
+    float sampleFrequency;
+    float values[9];
     float angles[3]; // yaw pitch roll
     float heading;
 
     int16_t temperature;
     long pressure;
 
-    // Set the FreeSixIMU object
-    FreeSixIMU* pSixDOF;
+    ADXL345*  pAcc;
+    ITG3200*  pGyro;
+    HMC5883L* pMagn;
     Madgwick* pMadgwick;
 
     // Record any errors that may occur in the compass.
     int error;
+    int nUpdate;
+    uint64_t micros() {
+        struct timeval tv;
+        gettimeofday(&tv, nullptr);
+        return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
+    }
+    uint64_t lastUpdate;
+    uint64_t now;
 };
 
 #endif // MAINWINDOW_H
