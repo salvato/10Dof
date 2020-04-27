@@ -19,6 +19,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    pGLWidget = new GLWidget(nullptr);
+    pGLWidget->show();
+
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(FIMU_ACC_ADDR);
 
@@ -80,8 +83,11 @@ MainWindow::onLoopTimeElapsed() {
 //                         values[0], values[1], values[2]);
 
     nUpdate++;
-    nUpdate = nUpdate % 100;
+    nUpdate = nUpdate % 20;
     if(nUpdate == 0) {
+        pMadgwick->getRotation(&q0, &q1, &q2, &q3);
+        pGLWidget->setRotation(q0, q1, q2, q3);
+        pGLWidget->update();
         ui->psiEdit->setText(QString("%1").arg(pMadgwick->getRoll(), 0, 'f', 1));
         ui->thetaEdit->setText(QString("%1").arg(pMadgwick->getPitch(), 0, 'f', 1));
         ui->phiEdit->setText(QString("%1").arg(pMadgwick->getYaw(), 0, 'f', 1));

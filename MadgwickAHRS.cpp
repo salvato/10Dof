@@ -47,6 +47,15 @@ Madgwick::Madgwick() {
 
 
 void
+Madgwick::getRotation(float* r0, float* r1, float* r2, float* r3) {
+    *r0 = q0;
+    *r1 = q1;
+    *r2 = q2;
+    *r3 = q3;
+}
+
+
+void
 Madgwick::update(float gx, float gy, float gz,
                  float ax, float ay, float az,
                  float mx, float my, float mz)

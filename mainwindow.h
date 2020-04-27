@@ -2,12 +2,14 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <GLwidget.h>
 #include <QTimer>
 
 #include <FIMU_ADXL345.h>
 #include <FIMU_ITG3200.h>
 #include <HMC5883L.h>
 #include <MadgwickAHRS.h>
+
 
 #include <sys/time.h>
 
@@ -38,6 +40,8 @@ protected:
 
 private:
     Ui::MainWindow *ui;
+    GLWidget* pGLWidget;
+
     QTimer loopTimer;
 
     float sampleFrequency;
@@ -63,6 +67,7 @@ private:
     }
     uint64_t lastUpdate;
     uint64_t now;
+    float q0, q1, q2, q3;
 };
 
 #endif // MAINWINDOW_H
