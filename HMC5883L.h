@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ConfigurationRegisterB 0x01
 #define ModeRegister           0x02
 #define DataRegisterBegin      0x03
+#define StatusRegister         0x09
 #define IdentityRegister       0x0A
 #define IdentityRegisterValue  0x48
 
@@ -70,6 +71,8 @@ public:
     int16_t SetMeasurementMode(uint8_t mode);
     int16_t SetScale(int16_t milliGauss);
 
+    bool isDataReady();
+
     const char *GetErrorText(int16_t errorCode);
 
     bool isConnected();
@@ -79,6 +82,7 @@ protected:
     void Read(uint8_t address, int16_t length, uint8_t *buffer);
 
 private:
+    int fd;
     float m_Scale;
 };
 #endif

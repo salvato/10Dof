@@ -42,6 +42,15 @@ ADXL345::ADXL345() {
 void
 ADXL345::init(int16_t address) {
     _dev_address = address;
+    // open device on /dev/i2c-1
+    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
+      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
+      exit(-1);
+    }
+    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
+        qDebug() << "ADXL345 Error in ioctl()";
+        exit(-1);
+    }
     powerOn();
 }
 
@@ -90,54 +99,31 @@ ADXL345::get_Gxyz(float *xyz){
 // Writes val to address register on device
 void
 ADXL345::writeTo(byte address, byte val) {
-    // open device on /dev/i2c-1
-    int fd;
-    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
-      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      exit(-1);
-    }
-    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
-        qDebug() << "ADXL345 Error in ioctl()";
-        exit(-1);
-    }
-
     std::array<uint8_t, 2> data{address, val};
     if(write(fd, data.data(), data.size()) == -1) {
         std::string what( "write " __FILE__ "("
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
-    close(fd);
 }
 
 
 // Reads num bytes starting from address register on device in to _buff array
 void
 ADXL345::readFrom(byte address, int16_t num, byte _buff[]) {
-    // open device on /dev/i2c-1
-    int fd;
-    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
-      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      exit(-1);
-    }
-    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
-        qDebug() << "ADXL345 Error in ioctl()";
-        exit(-1);
-    }
     if(write(fd, &address, sizeof(address)) == -1) {
         std::string what( "write " __FILE__ "("
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     if(read(fd, _buff, num) != num) {
         status = ADXL345_ERROR;
         error_code = ADXL345_READ_ERROR;
     }
-    close(fd);
 }
 
 

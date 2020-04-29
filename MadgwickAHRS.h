@@ -19,9 +19,26 @@
 
 #include <math.h>
 
-//--------------------------------------------------------------------------------------------
-// Variable declaration
 class Madgwick {
+public:
+    Madgwick(void);
+    void begin(float sampleFrequency);
+    void setInvFreq(float invFreq);
+    void update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
+    void updateIMU(float gx, float gy, float gz, float ax, float ay, float az);
+
+    //float getPitch(){return atan2f(2.0f * q2 * q3 - 2.0f * q0 * q1, 2.0f * q0 * q0 + 2.0f * q3 * q3 - 1.0f);};
+    //float getRoll(){return -1.0f * asinf(2.0f * q1 * q3 + 2.0f * q0 * q2);};
+    //float getYaw(){return atan2f(2.0f * q1 * q2 - 2.0f * q0 * q3, 2.0f * q0 * q0 + 2.0f * q1 * q1 - 1.0f);};
+
+    float getRoll() ;
+    float getPitch();
+    float getYaw();
+    float getRollRadians();
+    float getPitchRadians();
+    float getYawRadians();
+    void getRotation(float* r0, float* r1, float* r2, float* r3);
+
 private:
     static float invSqrt(float x);
     float beta; // algorithm gain
@@ -36,45 +53,6 @@ private:
     char anglesComputed;
     void computeAngles();
 
-//-------------------------------------------------------------------------------------------
-// Function declarations
-public:
-    Madgwick(void);
-    void begin(float sampleFrequency) { invSampleFreq = 1.0f / sampleFrequency; }
-    void setInvFreq(float invFreq) { invSampleFreq = invFreq; }
-    void update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
-    void updateIMU(float gx, float gy, float gz, float ax, float ay, float az);
-
-    //float getPitch(){return atan2f(2.0f * q2 * q3 - 2.0f * q0 * q1, 2.0f * q0 * q0 + 2.0f * q3 * q3 - 1.0f);};
-    //float getRoll(){return -1.0f * asinf(2.0f * q1 * q3 + 2.0f * q0 * q2);};
-    //float getYaw(){return atan2f(2.0f * q1 * q2 - 2.0f * q0 * q3, 2.0f * q0 * q0 + 2.0f * q1 * q1 - 1.0f);};
-
-    float getRoll() {
-        if (!anglesComputed) computeAngles();
-        return roll * 57.29578f; // 57.29578f = 180.0/M_PI
-    }
-    float getPitch() {
-        if (!anglesComputed) computeAngles();
-        return pitch * 57.29578f;
-    }
-    float getYaw() {
-        if (!anglesComputed) computeAngles();
-        return yaw * 57.29578f + 180.0f;
-    }
-    float getRollRadians() {
-        if (!anglesComputed) computeAngles();
-        return roll;
-    }
-    float getPitchRadians() {
-        if (!anglesComputed) computeAngles();
-        return pitch;
-    }
-    float getYawRadians() {
-        if (!anglesComputed) computeAngles();
-        return yaw;
-    }
-
-    void getRotation(float* r0, float* r1, float* r2, float* r3);
 };
 #endif
 

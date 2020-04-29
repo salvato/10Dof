@@ -199,6 +199,7 @@ public:
     void writeTo(byte address, byte val);
 
 private:
+    int fd;
     void readFrom(byte address, int16_t num, byte buff[]);
     void setRegisterBit(byte regAdress, int16_t bitPos, bool state);
     bool getRegisterBit(byte regAdress, int16_t bitPos);

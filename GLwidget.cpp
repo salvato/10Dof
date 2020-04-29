@@ -57,7 +57,6 @@ GLWidget::GLWidget(QWidget *parent)
     : QOpenGLWidget(parent)
     , geometries(0)
     , texture(0)
-    , angularSpeed(0)
 {
 }
 
@@ -80,45 +79,6 @@ GLWidget::setRotation(float q0, float q1, float q2, float q3) {
 
 
 void
-GLWidget::mousePressEvent(QMouseEvent *e) {
-    // Save mouse press position
-    mousePressPosition = QVector2D(e->localPos());
-}
-
-
-void
-GLWidget::mouseReleaseEvent(QMouseEvent *e) {
-    // Mouse release position - mouse press position
-    QVector2D diff = QVector2D(e->localPos()) - mousePressPosition;
-    // Rotation axis is perpendicular to the mouse position difference vector
-    QVector3D n = QVector3D(diff.y(), diff.x(), 0.0).normalized();
-    // Accelerate angular speed relative to the length of the mouse sweep
-    qreal acc = diff.length() / 100.0;
-    // Calculate new rotation axis as weighted sum
-    rotationAxis = (rotationAxis * angularSpeed + n * acc).normalized();
-    // Increase angular speed
-    angularSpeed += acc;
-}
-
-
-void
-GLWidget::timerEvent(QTimerEvent *) {
-    // Decrease angular speed (friction)
-    angularSpeed *= 0.99;
-    // Stop rotation when speed goes below threshold
-    if (angularSpeed < 0.01) {
-        angularSpeed = 0.0;
-    }
-    else {
-        // Update rotation
-        rotation = QQuaternion::fromAxisAndAngle(rotationAxis, angularSpeed) * rotation;
-        // Request an update
-        update();
-    }
-}
-
-
-void
 GLWidget::initializeGL() {
     initializeOpenGLFunctions();
     glClearColor(0, 0, 0, 1);
@@ -129,8 +89,6 @@ GLWidget::initializeGL() {
     // Enable back face culling
     glEnable(GL_CULL_FACE);
     geometries = new GeometryEngine;
-    // Use QBasicTimer because its faster than QTimer
-    timer.start(12, this);
 }
 
 

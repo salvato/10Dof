@@ -185,7 +185,7 @@ public:
     void readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]);
 
 private:
-
+    int fd;
     uint8_t _dev_address;
     uint8_t _buff[6];
 };

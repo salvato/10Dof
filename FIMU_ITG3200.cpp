@@ -52,19 +52,29 @@ ITG3200::init(uint16_t  address) {
     init(address, NOSRDIVIDER, RANGE2000, BW256_SR8, PLL_XGYRO_REF, true, true);
 
     // slow sample rate - divisor = 0  filter = 1,2,3,4,5, or 6  clocksrc = 0, 1, 2, or 3  (raw values)
-    //init(NOSRDIVIDER, RANGE2000, BW010_SR1, INTERNALOSC, true, true);
+    //init(address, NOSRDIVIDER, RANGE2000, BW010_SR1, INTERNALOSC, true, true);
 
     // fast sample rate 32Khz external clock - divisor = 0  filter = 0  clocksrc = 4  (raw values)
-    //init(NOSRDIVIDER, RANGE2000, BW256_SR8, PLL_EXTERNAL32, true, true);
+    //init(address, NOSRDIVIDER, RANGE2000, BW256_SR8, PLL_EXTERNAL32, true, true);
 
     // slow sample rate 32Khz external clock - divisor = 0  filter = 1,2,3,4,5, or 6  clocksrc = 4  (raw values)
-    //init(NOSRDIVIDER, RANGE2000, BW010_SR1, PLL_EXTERNAL32, true, true);
+    //init(address, NOSRDIVIDER, RANGE2000, BW010_SR1, PLL_EXTERNAL32, true, true);
 }
 
 
 void
 ITG3200::init(uint16_t address, byte _SRateDiv, byte _Range, byte _filterBW, byte _ClockSrc, bool _ITGReady, bool _INTRawDataReady) {
     _dev_address = address;
+    // open device on /dev/i2c-1
+    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
+      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
+      exit(EXIT_FAILURE);
+    }
+    // start transmission to device
+    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
+        qDebug() << "ADXL345 Error in ioctl()";
+        exit(EXIT_FAILURE);
+    }
     setSampleRateDiv(_SRateDiv);
     setFSRange(_Range);
     setFilterBW(_filterBW);
@@ -309,8 +319,9 @@ ITG3200::readGyroRawCal(int16_t *_GyroXYZ) {
 void
 ITG3200::readGyro(float *_GyroX, float *_GyroY, float *_GyroZ){
     int16_t x, y, z;
-
-    readGyroRawCal(&x, &y, &z); // x,y,z will contain calibrated integer values from the sensor
+     // x,y,z will contain calibrated integer values from the sensor
+    readGyroRawCal(&x, &y, &z);
+    // sensitivity is 14.375 LSBs per °/sec
     *_GyroX =  x / 14.375 * polarities[0] * gains[0];
     *_GyroY =  y / 14.375 * polarities[1] * gains[1];
     *_GyroZ =  z / 14.375 * polarities[2] * gains[2];
@@ -402,17 +413,6 @@ ITG3200::setClockSource(byte _CLKsource) {
 
 void
 ITG3200::writemem(uint8_t _addr, uint8_t _val) {
-    // open device on /dev/i2c-1
-    int fd;
-    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
-      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      exit(-1);
-    }
-    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
-        qDebug() << "ADXL345 Error in ioctl()";
-        exit(-1);
-    }
-
     std::array<uint8_t, 2> data{_addr, _val};
     if(write(fd, data.data(), data.size()) == -1) {
         std::string what( "write " __FILE__ "("
@@ -421,24 +421,11 @@ ITG3200::writemem(uint8_t _addr, uint8_t _val) {
         qDebug() << what.c_str();
         exit(-1);
     }
-    close(fd);
 }
 
 
 void
 ITG3200::readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]) {
-    // open device on /dev/i2c-1
-    int fd;
-    if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
-      qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      exit(-1);
-    }
-    // start transmission to device
-    if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
-        qDebug() << "ADXL345 Error in ioctl()";
-        exit(-1);
-    }
-
     // sends register address to read from
     if(write(fd, &_addr, sizeof(_addr)) == -1) {
         std::string what( "write " __FILE__ "("
@@ -447,7 +434,6 @@ ITG3200::readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]) {
         qDebug() << what.c_str();
         exit(-1);
     }
-
     // receive DATA
     if(read(fd, __buff, _nbytes) != _nbytes) {
         std::string what( "read " __FILE__ "("
@@ -456,6 +442,5 @@ ITG3200::readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]) {
         qDebug() << what.c_str();
         exit(-1);
     }
-    close(fd);
 }
 

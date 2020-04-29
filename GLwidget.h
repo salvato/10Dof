@@ -76,10 +76,6 @@ public:
     void setRotation(float q0, float q1, float q2, float q3);
 
 protected:
-    void mousePressEvent(QMouseEvent *e) override;
-    void mouseReleaseEvent(QMouseEvent *e) override;
-    void timerEvent(QTimerEvent *e) override;
-
     void initializeGL() override;
     void resizeGL(int w, int h) override;
     void paintGL() override;
@@ -88,17 +84,12 @@ protected:
     void initTextures();
 
 private:
-    QBasicTimer timer;
     QOpenGLShaderProgram program;
     GeometryEngine *geometries;
 
     QOpenGLTexture *texture;
 
     QMatrix4x4 projection;
-
-    QVector2D mousePressPosition;
-    QVector3D rotationAxis;
-    qreal angularSpeed;
     QQuaternion rotation;
 };
 

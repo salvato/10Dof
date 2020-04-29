@@ -20,6 +20,7 @@
 // Header files
 
 #include "MadgwickAHRS.h"
+#include <inttypes.h>
 #include <math.h>
 
 //-------------------------------------------------------------------------------------------
@@ -43,6 +44,60 @@ Madgwick::Madgwick() {
     q3 = 0.0f;
     invSampleFreq = 1.0f/sampleFreqDef;
     anglesComputed = 0;
+}
+
+
+void
+Madgwick::begin(float sampleFrequency) {
+    invSampleFreq = 1.0f / sampleFrequency;
+}
+
+
+void
+Madgwick::setInvFreq(float invFreq) {
+    invSampleFreq = invFreq;
+}
+
+
+float
+Madgwick::getRoll() {
+    if (!anglesComputed) computeAngles();
+    return roll * 57.29578f; // 57.29578f = 180.0/M_PI
+}
+
+
+float
+Madgwick::getPitch() {
+    if (!anglesComputed) computeAngles();
+    return pitch * 57.29578f;
+}
+
+
+float
+Madgwick::getYaw() {
+    if (!anglesComputed) computeAngles();
+    return yaw * 57.29578f + 180.0f;
+}
+
+
+float
+Madgwick::getRollRadians() {
+    if (!anglesComputed) computeAngles();
+    return roll;
+}
+
+
+float
+Madgwick::getPitchRadians() {
+    if (!anglesComputed) computeAngles();
+    return pitch;
+}
+
+
+float
+Madgwick::getYawRadians() {
+    if (!anglesComputed) computeAngles();
+    return yaw;
 }
 
 
@@ -74,7 +129,7 @@ Madgwick::update(float gx, float gy, float gz,
     }
 
     // Convert gyroscope degrees/sec to radians/sec
-    gx *= 0.0174533f;
+    gx *= 0.0174533f; // gx *= M_PI/180.0
     gy *= 0.0174533f;
     gz *= 0.0174533f;
 
@@ -249,9 +304,10 @@ Madgwick::updateIMU(float gx, float gy, float gz,
 
 float
 Madgwick::invSqrt(float x) {
+//    return 1.0f/sqrtf(x);
     float halfx = 0.5f * x;
     float y = x;
-    long i = *(long*)&y;
+    int32_t i = *(int32_t*)&y;
     i = 0x5f3759df - (i>>1);
     y = *(float*)&i;
     y = y * (1.5f - (halfx * y * y));

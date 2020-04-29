@@ -37,6 +37,7 @@ public slots:
     void onLoopTimeElapsed();
 
 protected:
+    void closeEvent(QCloseEvent *event);
 
 private:
     Ui::MainWindow *ui;
@@ -67,6 +68,7 @@ private:
     }
     uint64_t lastUpdate;
     uint64_t now;
+    float delta;
     float q0, q1, q2, q3;
 };
 
