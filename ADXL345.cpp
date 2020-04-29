@@ -13,7 +13,7 @@
  *                                                                         *
  ***************************************************************************/
 
-#include "FIMU_ADXL345.h"
+#include "ADXL345.h"
 #include <algorithm> // min() & max()
 #include <cmath>     // pow()
 #include <unistd.h>

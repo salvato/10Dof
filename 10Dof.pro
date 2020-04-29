@@ -19,23 +19,21 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += main.cpp\
         mainwindow.cpp \
     geometryengine.cpp \
-    FIMU_ADXL345.cpp \
-    FIMU_ITG3200.cpp \
-    FreeSixIMU.cpp \
     HMC5883L.cpp \
     MadgwickAHRS.cpp \
     MahonyAHRS.cpp \
-    GLwidget.cpp
+    GLwidget.cpp \
+    ADXL345.cpp \
+    ITG3200.cpp
 
 HEADERS  += mainwindow.h \
     geometryengine.h \
-    FIMU_ADXL345.h \
-    FIMU_ITG3200.h \
-    FreeSixIMU.h \
     HMC5883L.h \
     MadgwickAHRS.h \
     MahonyAHRS.h \
-    GLwidget.h
+    GLwidget.h \
+    ADXL345.h \
+    ITG3200.h
 
 FORMS    += mainwindow.ui
 

@@ -32,6 +32,8 @@ MainWindow::MainWindow(QWidget *parent)
     pGyro->zeroCalibrate(128, 5); // calibrate the ITG3200
 
     pMagn = new HMC5883L();// init HMC5883L
+    // The magnitude of the Earth's magnetic field at its surface
+    // ranges from 250 to 650 milli Gauss.
     int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
     if(error != 0) {
         qDebug() << pMagn->GetErrorText(error);

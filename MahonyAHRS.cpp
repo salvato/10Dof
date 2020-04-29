@@ -254,14 +254,15 @@ Mahony::updateIMU(float gx, float gy, float gz,
 
 float
 Mahony::invSqrt(float x) {
-    float halfx = 0.5f * x;
-    float y = x;
-    long i = *(long*)&y;
-    i = 0x5f3759df - (i>>1);
-    y = *(float*)&i;
-    y = y * (1.5f - (halfx * y * y));
-    y = y * (1.5f - (halfx * y * y));
-    return y;
+    return 1.0f/sqrtf(x);
+//    float halfx = 0.5f * x;
+//    float y = x;
+//    long i = *(long*)&y;
+//    i = 0x5f3759df - (i>>1);
+//    y = *(float*)&i;
+//    y = y * (1.5f - (halfx * y * y));
+//    y = y * (1.5f - (halfx * y * y));
+//    return y;
 }
 
 

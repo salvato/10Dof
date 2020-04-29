@@ -5,8 +5,8 @@
 #include <GLwidget.h>
 #include <QTimer>
 
-#include <FIMU_ADXL345.h>
-#include <FIMU_ITG3200.h>
+#include <ADXL345.h>
+#include <ITG3200.h>
 #include <HMC5883L.h>
 #include <MadgwickAHRS.h>
 

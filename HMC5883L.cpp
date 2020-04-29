@@ -119,7 +119,7 @@ bool
 HMC5883L::isDataReady() {
     uint8_t data = 0;
     Read(StatusRegister, 1, &data);
-    return (data&1 != 0);
+    return ((data&1) != 0);
 }
 
 
