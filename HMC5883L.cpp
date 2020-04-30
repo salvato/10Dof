@@ -127,6 +127,7 @@ void
 HMC5883L::ReadRawAxis(MagnetometerRaw* raw) {
     uint8_t buffer[6];
     Read(DataRegisterBegin, 6, buffer);
+    // Attention !!! Y and Z exchanged !!!
     raw->XAxis = (buffer[0] << 8) | buffer[1];
     raw->ZAxis = (buffer[2] << 8) | buffer[3];
     raw->YAxis = (buffer[4] << 8) | buffer[5];
@@ -138,8 +139,8 @@ HMC5883L::ReadScaledAxis(MagnetometerScaled* scaled) {
     MagnetometerRaw raw;
     ReadRawAxis(&raw);
     scaled->XAxis = raw.XAxis * m_Scale;
-    scaled->ZAxis = raw.ZAxis * m_Scale;
     scaled->YAxis = raw.YAxis * m_Scale;
+    scaled->ZAxis = raw.ZAxis * m_Scale;
 }
 
 
@@ -148,8 +149,8 @@ HMC5883L::ReadScaledAxis(float* value) {
     MagnetometerRaw raw;
     ReadRawAxis(&raw);
     value[0] = raw.XAxis * m_Scale;
-    value[1] = raw.ZAxis * m_Scale;
-    value[2] = raw.YAxis * m_Scale;
+    value[1] = raw.YAxis * m_Scale;
+    value[2] = raw.ZAxis * m_Scale;
 }
 
 
