@@ -49,7 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     pMadgwick = new Madgwick();
 
-    sampleFrequency = 1000;
+    sampleFrequency = 200;
     pMadgwick->begin(sampleFrequency);
 
     // Consider to change to QBasicTimer that it's faster than QTimer
@@ -116,22 +116,22 @@ MainWindow::onLoopTimeElapsed() {
 //                         values[0], values[1], values[2]);
     nUpdate++;
     nUpdate = nUpdate % 10;
-    if(nUpdate == 0) {
+    if(!nUpdate) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
         pGLWidget->setRotation(q0, q1, q2, q3);
         pGLWidget->update();
 
-        ui->XgyroEdit->setText(QString("%1").arg(values[3], 4, 'f', 0));
-        ui->YgyroEdit->setText(QString("%1").arg(values[4], 4, 'f', 0));
-        ui->ZgyroEdit->setText(QString("%1").arg(values[5], 4, 'f', 0));
+//        ui->XgyroEdit->setText(QString("%1").arg(values[3], 4, 'f', 0));
+//        ui->YgyroEdit->setText(QString("%1").arg(values[4], 4, 'f', 0));
+//        ui->ZgyroEdit->setText(QString("%1").arg(values[5], 4, 'f', 0));
 
-        ui->XaccEdit->setText(QString("%1").arg(values[0], 4, 'f', 0));
-        ui->YaccEdit->setText(QString("%1").arg(values[1], 4, 'f', 0));
-        ui->ZaccEdit->setText(QString("%1").arg(values[2], 4, 'f', 0));
+//        ui->XaccEdit->setText(QString("%1").arg(values[0], 4, 'f', 0));
+//        ui->YaccEdit->setText(QString("%1").arg(values[1], 4, 'f', 0));
+//        ui->ZaccEdit->setText(QString("%1").arg(values[2], 4, 'f', 0));
 
-        ui->XmagEdit->setText(QString("%1").arg(values[6], 4, 'f', 0));
-        ui->YmagEdit->setText(QString("%1").arg(values[7], 4, 'f', 0));
-        ui->ZmagEdit->setText(QString("%1").arg(values[8], 4, 'f', 0));
+//        ui->XmagEdit->setText(QString("%1").arg(values[6], 4, 'f', 0));
+//        ui->YmagEdit->setText(QString("%1").arg(values[7], 4, 'f', 0));
+//        ui->ZmagEdit->setText(QString("%1").arg(values[8], 4, 'f', 0));
 
 //        ui->headingEdit->setText(QString("%1").arg(1.0f/delta));
 //        ui->psiEdit->setText(QString("%1").arg(pMadgwick->getRoll(), 0, 'f', 1));
