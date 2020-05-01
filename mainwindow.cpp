@@ -64,6 +64,13 @@ MainWindow::MainWindow(QWidget *parent)
     while(!pMagn->isDataReady()) {}
     pMagn->ReadScaledAxis(&values[6]);
 
+    for(int i=0; i< 10000; i++) {
+        pMadgwick->update(values[3], values[4], values[5],
+                          values[0], values[1], values[2],
+                          values[6], values[7], values[8]);
+    }
+    pMadgwick->getRotation(&q0, &q1, &q2, &q3);
+    pGLWidget->setRotation(q0, q1, q2, q3);
     lastUpdate = micros();
     now = micros();
     loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
