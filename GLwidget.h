@@ -80,6 +80,9 @@ protected:
     void resizeGL(int w, int h) override;
     void paintGL() override;
 
+    QSize minimumSizeHint() const;
+    QSize sizeHint() const;
+
     void initShaders();
     void initTextures();
 

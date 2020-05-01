@@ -24,7 +24,14 @@ SOURCES += main.cpp\
     MahonyAHRS.cpp \
     GLwidget.cpp \
     ADXL345.cpp \
-    ITG3200.cpp
+    ITG3200.cpp \
+    axesdialog.cpp \
+    AxisFrame.cpp \
+    AxisLimits.cpp \
+    DataSetProperties.cpp \
+    datastream2d.cpp \
+    plot2d.cpp \
+    plotpropertiesdlg.cpp
 
 HEADERS  += mainwindow.h \
     geometryengine.h \
@@ -33,10 +40,20 @@ HEADERS  += mainwindow.h \
     MahonyAHRS.h \
     GLwidget.h \
     ADXL345.h \
-    ITG3200.h
+    ITG3200.h \
+    axesdialog.h \
+    AxisFrame.h \
+    AxisLimits.h \
+    DataSetProperties.h \
+    datastream2d.h \
+    plot2d.h \
+    plotpropertiesdlg.h
 
-FORMS    += mainwindow.ui
+FORMS    +=
 
 RESOURCES += \
     shaders.qrc \
     textures.qrc
+
+DISTFILES += \
+    plot.png

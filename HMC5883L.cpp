@@ -40,15 +40,15 @@ HMC5883L::HMC5883L() {
     // open device on /dev/i2c-1
     if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
       qDebug() << QString("HMC5883L Error: Couldn't open device! %1").arg(fd);
-      exit(EXIT_FAILURE);
+      //exit(EXIT_FAILURE);
     }
     if(ioctl(fd, I2C_SLAVE, HMC5883L_Address) == -1) {
         qDebug() << "HMC5883L Error in ioctl()";
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
     if(!isConnected()) {
         qDebug() << "Error the Magnetometer does not respond: exiting";
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 }
 
@@ -162,7 +162,7 @@ HMC5883L::Write(uint8_t address, uint8_t val) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        exit(-1);
+        //exit(EXIT_FAILURE);
     }
 }
 
@@ -174,14 +174,14 @@ HMC5883L::Read(uint8_t address, int16_t length, uint8_t* buffer) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        exit(-1);
+        //exit(EXIT_FAILURE);
     }
     if(read(fd, buffer, length) != length) {
         std::string what( "write " __FILE__ "("
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        exit(-1);
+        //exit(EXIT_FAILURE);
     }
 }
 

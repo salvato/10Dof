@@ -1,7 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "plot2d.h"
+#include <QtWidgets>
 #include <QDebug>
 #include <QThread>
+#include <GLwidget.h>
+#include <QPushButton>
 
 #include <cmath>
 
@@ -13,15 +17,40 @@
 // 0x77     BMP085_ADDRESS          (Pressure and Temperature)
 
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
-    , pGLWidget(nullptr)
+MainWindow::MainWindow()
+    : pGLWidget(nullptr)
+    , pPlotVal(nullptr)
+    , bAccCalInProgress(false)
+    , bGyroCalInProgress(false)
+    , bMagCalInProgress(false)
 {
-    ui->setupUi(this);
 
-    pGLWidget = new GLWidget(nullptr);
-    pGLWidget->show();
+    buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
+    buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
+    buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
+
+    connect(buttonAccCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartAccCalibration()));
+    connect(buttonGyroCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartGyroCalibration()));
+    connect(buttonMagCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartMagCalibration()));
+
+    pGLWidget = new GLWidget(this);
+
+    pPlotVal = new Plot2D(this, "Plot");
+
+    pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
+    pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
+    pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+
+    pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+
+    pPlotVal->SetShowDataSet(1, true);
+    pPlotVal->SetShowDataSet(2, true);
+    pPlotVal->SetShowDataSet(3, true);
+
+    initLayout();
 
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(FIMU_ACC_ADDR);
@@ -37,12 +66,12 @@ MainWindow::MainWindow(QWidget *parent)
     int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
     if(error != 0) {
         qDebug() << pMagn->GetErrorText(error);
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
     error = pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
     if(error != 0)  {
         qDebug() << pMagn->GetErrorText(error);
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE);
     }
 
     //bmp085Calibration(); // init barometric pressure sensor
@@ -66,8 +95,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     for(int i=0; i< 10000; i++) {
         pMadgwick->update(values[3], values[4], values[5],
-                          values[0], values[1], values[2],
-                          values[6], values[7], values[8]);
+                values[0], values[1], values[2],
+                values[6], values[7], values[8]);
     }
     pMadgwick->getRotation(&q0, &q1, &q2, &q3);
     pGLWidget->setRotation(q0, q1, q2, q3);
@@ -80,15 +109,136 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow() {
     if(pGLWidget) delete pGLWidget;
     pGLWidget = nullptr;
-    delete ui;
 }
 
 
 void
 MainWindow::closeEvent(QCloseEvent *event) {
     Q_UNUSED(event)
+    loopTimer.stop();
     if(pGLWidget) delete pGLWidget;
     pGLWidget = nullptr;
+    if(pPlotVal) delete pPlotVal;
+    pPlotVal = nullptr;
+}
+
+
+
+void
+MainWindow::initLayout() {
+    QHBoxLayout *firstButtonRow = new QHBoxLayout;
+    firstButtonRow->addWidget(buttonAccCalibration);
+    firstButtonRow->addWidget(buttonGyroCalibration);
+    firstButtonRow->addWidget(buttonMagCalibration);
+
+    QHBoxLayout *firstRow  = new QHBoxLayout;
+    firstRow->addWidget(pGLWidget);
+    firstRow->addWidget(pPlotVal);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addLayout(firstRow);
+    mainLayout->addLayout(firstButtonRow);
+
+    setLayout(mainLayout);
+}
+
+
+void
+MainWindow::keyPressEvent(QKeyEvent *e) {
+  if(e->key() == Qt::Key_Escape)
+    close();
+  else
+    QWidget::keyPressEvent(e);
+}
+
+
+void
+MainWindow::onStartAccCalibration() {
+    if(bAccCalInProgress) {
+        buttonAccCalibration->setText("Acc. Cal.");
+        bAccCalInProgress = false;
+        buttonGyroCalibration->setEnabled(true);
+        buttonMagCalibration->setEnabled(true);
+    }
+    else {
+        pPlotVal->ClearPlot();
+        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
+        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
+        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->SetShowDataSet(1, true);
+        pPlotVal->SetShowDataSet(2, true);
+        pPlotVal->SetShowDataSet(3, true);
+        bGyroCalInProgress = false;
+        bMagCalInProgress = false;
+        bAccCalInProgress = true;
+        buttonAccCalibration->setText("Stop Cal.");
+        buttonGyroCalibration->setDisabled(true);
+        buttonMagCalibration->setDisabled(true);
+        avgX = avgY = avgZ = 0.0;
+        nAvg = 10;
+        nCurr = 0;
+        t0 = micros();
+    }
+}
+
+
+void
+MainWindow::onStartGyroCalibration() {
+    if(bGyroCalInProgress) {
+        buttonGyroCalibration->setText("Gyro Cal.");
+        bGyroCalInProgress = false;
+        buttonAccCalibration->setEnabled(true);
+        buttonMagCalibration->setEnabled(true);
+    }
+    else {
+        pPlotVal->ClearPlot();
+        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
+        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
+        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->SetShowDataSet(1, true);
+        pPlotVal->SetShowDataSet(2, true);
+        pPlotVal->SetShowDataSet(3, true);
+        bMagCalInProgress = false;
+        bAccCalInProgress = false;
+        bGyroCalInProgress = true;
+        buttonGyroCalibration->setText("Stop Cal.");
+        buttonAccCalibration->setDisabled(true);
+        buttonMagCalibration->setDisabled(true);
+        angleX = 0.0;
+        angleY = 0.0;
+        angleZ = 0.0;
+        t0 = micros();
+    }
+}
+
+
+void
+MainWindow::onStartMagCalibration() {
+    if(bMagCalInProgress) {
+        bMagCalInProgress = false;
+        buttonMagCalibration->setText("Mag. Cal.");
+        buttonAccCalibration->setEnabled(true);
+        buttonGyroCalibration->setEnabled(true);
+    }
+    else {
+        pPlotVal->ClearPlot();
+        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
+        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
+        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->SetShowDataSet(1, true);
+        pPlotVal->SetShowDataSet(2, true);
+        pPlotVal->SetShowDataSet(3, true);
+        buttonMagCalibration->setText("Stop Cal.");
+        bAccCalInProgress = false;
+        bGyroCalInProgress = false;
+        bMagCalInProgress = true;
+        buttonAccCalibration->setDisabled(true);
+        buttonGyroCalibration->setDisabled(true);
+        t0 = micros();
+    }
 }
 
 
@@ -104,45 +254,68 @@ MainWindow::onLoopTimeElapsed() {
     // Within the Madgwick algorithm deliver your values
     // in the expected format which is rad/s and m/s²
 
-    if(pAcc->getInterruptSource(7))
+    if(pAcc->getInterruptSource(7)) {
         pAcc->get_Gxyz(&values[0]);
-    if(pGyro->isRawDataReadyOn())
-        pGyro->readGyro(&values[3]);
-    if(pMagn->isDataReady())
-        pMagn->ReadScaledAxis(&values[6]);
+        if(bAccCalInProgress) {
+            double x = (micros()-t0)/1000000.0;
+            avgX += double(values[0]);
+            avgY += double(values[1]);
+            avgZ += double(values[2]);
+            nCurr++;
+            if(nCurr == nAvg) {
+                avgX /= double(nAvg);
+                avgY /= double(nAvg);
+                avgZ /= double(nAvg);
+                nCurr = 0;
+                pPlotVal->NewPoint(1, x, avgX);
+                pPlotVal->NewPoint(2, x, avgY);
+                pPlotVal->NewPoint(3, x, avgZ);
+            }
+            avgX = avgY = avgZ = 0.0;
+        }
+    }
 
+    if(pGyro->isRawDataReadyOn()) {
+        pGyro->readGyro(&values[3]);
+        if(bGyroCalInProgress) {
+            double x = micros();
+            double d = lastUpdate - x;
+            x = (x-t0)/1000000.0;
+            d /= 1000000.0;
+            angleX += double(values[3]) * d;
+            angleY += double(values[4]) * d;
+            angleZ += double(values[5]) * d;
+            pPlotVal->NewPoint(1, x, angleX);
+            pPlotVal->NewPoint(2, x, angleY);
+            pPlotVal->NewPoint(3, x, angleZ);
+        }
+    }
+
+    if(pMagn->isDataReady()) {
+        pMagn->ReadScaledAxis(&values[6]);
+        if(bMagCalInProgress) {
+            pPlotVal->NewPoint(1, double(values[6]), double(values[7]));
+            pPlotVal->NewPoint(2, double(values[7]), double(values[8]));
+            pPlotVal->NewPoint(3, double(values[8]), double(values[6]));
+        }
+    }
     now = micros();
     delta = float(now-lastUpdate)/1000000.f;
     pMadgwick->setInvFreq(delta);
     lastUpdate = now;
     pMadgwick->update(values[3], values[4], values[5],
-                      values[0], values[1], values[2],
-                      values[6], values[7], values[8]);
+            values[0], values[1], values[2],
+            values[6], values[7], values[8]);
 
 //    pMadgwick->updateIMU(values[3], values[4], values[5],
 //                         values[0], values[1], values[2]);
+
     nUpdate++;
     nUpdate = nUpdate % 10;
     if(!nUpdate) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
         pGLWidget->setRotation(q0, q1, q2, q3);
         pGLWidget->update();
-
-//        ui->XgyroEdit->setText(QString("%1").arg(values[3], 4, 'f', 0));
-//        ui->YgyroEdit->setText(QString("%1").arg(values[4], 4, 'f', 0));
-//        ui->ZgyroEdit->setText(QString("%1").arg(values[5], 4, 'f', 0));
-
-//        ui->XaccEdit->setText(QString("%1").arg(values[0], 4, 'f', 0));
-//        ui->YaccEdit->setText(QString("%1").arg(values[1], 4, 'f', 0));
-//        ui->ZaccEdit->setText(QString("%1").arg(values[2], 4, 'f', 0));
-
-//        ui->XmagEdit->setText(QString("%1").arg(values[6], 4, 'f', 0));
-//        ui->YmagEdit->setText(QString("%1").arg(values[7], 4, 'f', 0));
-//        ui->ZmagEdit->setText(QString("%1").arg(values[8], 4, 'f', 0));
-
-//        ui->headingEdit->setText(QString("%1").arg(1.0f/delta));
-//        ui->psiEdit->setText(QString("%1").arg(pMadgwick->getRoll(), 0, 'f', 1));
-//        ui->thetaEdit->setText(QString("%1").arg(pMadgwick->getPitch(), 0, 'f', 1));
-//        ui->phiEdit->setText(QString("%1").arg(pMadgwick->getYaw(), 0, 'f', 1));
+        pPlotVal->UpdatePlot();
     }
 }
