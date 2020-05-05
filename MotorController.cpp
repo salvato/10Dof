@@ -14,6 +14,31 @@ using namespace std; // min() & max()
 #define GPIO_PIN_SET   1
 
 
+//==============================================================================
+//    43A High Power BTS7960 DC Motor Driver Module. http://handsontec.com
+//==============================================================================
+//     Pin No         Function                         Description
+//------------------------------------------------------------------------------
+//        1             RPWM            Forward Level or PWM signal, Active High
+//        2             LPWM            Reverse Level or PWM signal, Active High
+//        3             R_EN            Forward Drive Enable Input, Active High
+//        4             L_EN            Reverse Drive Enable Input, Active High
+//        5             R_IS            Forward Drive, Side current alarm output
+//        6             L_IS            Reverse Drive, Side current alarm output
+//        7             Vcc             +5V Power Supply Output
+//        8             Gnd             Ground: Connect to microcontroller GND
+//==============================================================================
+
+//========================================
+//              L298 Module:
+//========================================
+// i1 = High ; i2 = Low    Forward
+// i1 = Low  ; i2 = High   Reverse
+// i1 = i2                 Fast Motor Stop
+// ena                     PWM Input
+//========================================
+
+
 MotorController::MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
                                  uint32_t _enb, uint32_t _in3, uint32_t _in4,
                                  double _motor1Const, double _motor2Const)
