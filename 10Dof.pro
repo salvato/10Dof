@@ -31,7 +31,9 @@ SOURCES += main.cpp\
     DataSetProperties.cpp \
     datastream2d.cpp \
     plot2d.cpp \
-    plotpropertiesdlg.cpp
+    plotpropertiesdlg.cpp \
+    PID_v1.cpp \
+    utilities.cpp
 
 HEADERS  += mainwindow.h \
     geometryengine.h \
@@ -47,7 +49,9 @@ HEADERS  += mainwindow.h \
     DataSetProperties.h \
     datastream2d.h \
     plot2d.h \
-    plotpropertiesdlg.h
+    plotpropertiesdlg.h \
+    PID_v1.h \
+    utilities.h
 
 FORMS    +=
 
@@ -56,4 +60,5 @@ RESOURCES += \
     textures.qrc
 
 DISTFILES += \
-    plot.png
+    plot.png \
+    Inertial-Frame.png

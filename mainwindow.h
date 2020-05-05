@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QWidget>
 #include <QTimer>
@@ -9,18 +8,19 @@
 #include <HMC5883L.h>
 #include <MadgwickAHRS.h>
 
-
-#include <sys/time.h>
+#include "utilities.h"
 
 
 QT_FORWARD_DECLARE_CLASS(GLWidget)
 QT_FORWARD_DECLARE_CLASS(QPushButton)
 QT_FORWARD_DECLARE_CLASS(Plot2D)
+QT_FORWARD_DECLARE_CLASS(PID)
 
 
-#define FIMU_ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
+#define ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
 //#define FIMU_BMA180_DEF_ADDR BMA180_ADDRESS_SDO_LOW
-#define FIMU_ITG3200_DEF_ADDR ITG3200_ADDR_AD0_LOW  // AD0 connected to GND
+
+#define ITG3200_DEF_ADDR ITG3200_ADDR_AD0_LOW  // AD0 connected to GND
 // HMC5843 address is fixed so don't bother to define it
 
 
@@ -46,6 +46,7 @@ protected:
 private:
     GLWidget* pGLWidget;
     Plot2D*   pPlotVal;
+    PID*      pPid;
     QPushButton* buttonAccCalibration;
     QPushButton* buttonGyroCalibration;
     QPushButton* buttonMagCalibration;
@@ -68,11 +69,6 @@ private:
     // Record any errors that may occur in the compass.
     int error;
     int nUpdate;
-    uint64_t micros() {
-        struct timeval tv;
-        gettimeofday(&tv, nullptr);
-        return tv.tv_sec*(uint64_t)1000000+tv.tv_usec;
-    }
     uint64_t lastUpdate;
     uint64_t now;
     uint64_t t0;
@@ -84,6 +80,13 @@ private:
     bool bAccCalInProgress;
     bool bGyroCalInProgress;
     bool bMagCalInProgress;
+    // PID
+    double Kp;
+    double Ki;
+    double Kd;
+    double setpoint;
+    int moveState;
+    int ControllerDirection;
+    double movingAngleOffset;
+    double input, output;
 };
-
-#endif // MAINWINDOW_H

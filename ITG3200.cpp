@@ -68,12 +68,12 @@ ITG3200::init(uint16_t address, byte _SRateDiv, byte _Range, byte _filterBW, byt
     // open device on /dev/i2c-1
     if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
       qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      //exit(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
     // start transmission to device
     if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
         qDebug() << "ADXL345 Error in ioctl()";
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     setSampleRateDiv(_SRateDiv);
     setFSRange(_Range);
@@ -419,7 +419,7 @@ ITG3200::writemem(uint8_t _addr, uint8_t _val) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -432,7 +432,7 @@ ITG3200::readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     // receive DATA
     if(read(fd, __buff, _nbytes) != _nbytes) {
@@ -440,7 +440,7 @@ ITG3200::readmem(uint8_t _addr, uint8_t _nbytes, uint8_t __buff[]) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 

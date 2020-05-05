@@ -45,11 +45,11 @@ ADXL345::init(int16_t address) {
     // open device on /dev/i2c-1
     if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
       qDebug() << QString("ADXL345 Error: Couldn't open device! %1").arg(fd);
-      //exit(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
     if(ioctl(fd, I2C_SLAVE, _dev_address) == -1) {
         qDebug() << "ADXL345 Error in ioctl()";
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     powerOn();
 }
@@ -105,7 +105,7 @@ ADXL345::writeTo(byte address, byte val) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -118,7 +118,7 @@ ADXL345::readFrom(byte address, int16_t num, byte _buff[]) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     if(read(fd, _buff, num) != num) {
         status = ADXL345_ERROR;

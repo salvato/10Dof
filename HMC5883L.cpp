@@ -40,15 +40,15 @@ HMC5883L::HMC5883L() {
     // open device on /dev/i2c-1
     if((fd = open("/dev/i2c-1", O_RDWR)) < 0) {
       qDebug() << QString("HMC5883L Error: Couldn't open device! %1").arg(fd);
-      //exit(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
     if(ioctl(fd, I2C_SLAVE, HMC5883L_Address) == -1) {
         qDebug() << "HMC5883L Error in ioctl()";
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     if(!isConnected()) {
         qDebug() << "Error the Magnetometer does not respond: exiting";
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -64,7 +64,8 @@ HMC5883L::isConnected() {
 }
 
 
-int16_t HMC5883L::SetScale(int16_t milliGauss) {
+int16_t
+HMC5883L::SetScale(int16_t milliGauss) {
     uint8_t regValue = 0x00;
     if(milliGauss == 880) {
         regValue = 0x00;
@@ -127,7 +128,7 @@ void
 HMC5883L::ReadRawAxis(MagnetometerRaw* raw) {
     uint8_t buffer[6];
     Read(DataRegisterBegin, 6, buffer);
-    // Attention !!! Y and Z order is the specified one: see datasheet !!!
+    // Attention to the Y and Z order. It is the specified one: see datasheet !!!
     raw->XAxis = (buffer[0] << 8) | buffer[1];
     raw->ZAxis = (buffer[2] << 8) | buffer[3];
     raw->YAxis = (buffer[4] << 8) | buffer[5];
@@ -174,14 +175,14 @@ HMC5883L::Read(uint8_t address, int16_t length, uint8_t* buffer) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     if(read(fd, buffer, length) != length) {
         std::string what( "write " __FILE__ "("
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 

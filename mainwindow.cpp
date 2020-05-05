@@ -6,6 +6,7 @@
 #include <QThread>
 #include <GLwidget.h>
 #include <QPushButton>
+#include "PID_v1.h"
 
 #include <cmath>
 
@@ -49,6 +50,7 @@
 MainWindow::MainWindow()
     : pGLWidget(nullptr)
     , pPlotVal(nullptr)
+    , pPid(nullptr)
     , bAccCalInProgress(false)
     , bGyroCalInProgress(false)
     , bMagCalInProgress(false)
@@ -72,20 +74,25 @@ MainWindow::MainWindow()
     pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
     pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
     pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+    pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID");
+
+    pPlotVal->SetShowTitle(1, true);
+    pPlotVal->SetShowTitle(2, true);
+    pPlotVal->SetShowTitle(3, true);
+    pPlotVal->SetShowTitle(4, true);
+
+    pPlotVal->SetShowDataSet(4, true);
+
 
     pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
-
-    pPlotVal->SetShowDataSet(1, true);
-    pPlotVal->SetShowDataSet(2, true);
-    pPlotVal->SetShowDataSet(3, true);
 
     initLayout();
 
     pAcc  = new ADXL345(); // init ADXL345
-    pAcc->init(FIMU_ACC_ADDR);
+    pAcc->init(ACC_ADDR);
 
     pGyro = new ITG3200(); // init ITG3200
-    pGyro->init(FIMU_ITG3200_DEF_ADDR);
+    pGyro->init(ITG3200_DEF_ADDR);
     QThread::msleep(1000);
     pGyro->zeroCalibrate(128, 5); // calibrate the ITG3200
 
@@ -107,7 +114,18 @@ MainWindow::MainWindow()
 
     pMadgwick = new Madgwick();
 
-    sampleFrequency = 200;
+    double originalSetpoint = 175.8;
+    setpoint = originalSetpoint;
+    movingAngleOffset = 0.1;
+    moveState = 0; // 0 = balance; 1 = back; 2 = forth
+    Kp = 50.0;
+    Kd =  0.0;//1.4;
+    Ki =  0.0;//60.0;
+    pPid = new PID(&input, &output, &setpoint,
+                   Kp, Ki, Kd,
+                   ControllerDirection);
+
+    sampleFrequency = 300;
     pMadgwick->begin(sampleFrequency);
 
     // Consider to change to QBasicTimer that it's faster than QTimer
@@ -190,14 +208,15 @@ MainWindow::onStartAccCalibration() {
         buttonMagCalibration->setEnabled(true);
     }
     else {
-        pPlotVal->ClearPlot();
-        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
-        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
-        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
-        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->ClearDataSet(1);
+        pPlotVal->ClearDataSet(2);
+        pPlotVal->ClearDataSet(3);
+
         pPlotVal->SetShowDataSet(1, true);
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
+        pPlotVal->SetShowDataSet(4, false);
+
         bGyroCalInProgress = false;
         bMagCalInProgress = false;
         bAccCalInProgress = true;
@@ -221,14 +240,15 @@ MainWindow::onStartGyroCalibration() {
         buttonMagCalibration->setEnabled(true);
     }
     else {
-        pPlotVal->ClearPlot();
-        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
-        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
-        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
-        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->ClearDataSet(1);
+        pPlotVal->ClearDataSet(2);
+        pPlotVal->ClearDataSet(3);
+
         pPlotVal->SetShowDataSet(1, true);
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
+        pPlotVal->SetShowDataSet(4, false);
+
         bMagCalInProgress = false;
         bAccCalInProgress = false;
         bGyroCalInProgress = true;
@@ -252,14 +272,15 @@ MainWindow::onStartMagCalibration() {
         buttonGyroCalibration->setEnabled(true);
     }
     else {
-        pPlotVal->ClearPlot();
-        pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
-        pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
-        pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
-        pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+        pPlotVal->ClearDataSet(1);
+        pPlotVal->ClearDataSet(2);
+        pPlotVal->ClearDataSet(3);
+
         pPlotVal->SetShowDataSet(1, true);
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
+        pPlotVal->SetShowDataSet(4, false);
+
         buttonMagCalibration->setText("Stop Cal.");
         bAccCalInProgress = false;
         bGyroCalInProgress = false;
@@ -273,15 +294,16 @@ MainWindow::onStartMagCalibration() {
 
 void
 MainWindow::onLoopTimeElapsed() {
-    //
-    //  !!! Warning !!!
-    //
+    //==================================================================
+    //  !!! Attention !!!
+    //==================================================================
     // Reasonable convergence can be achieved in two or three iterations
-    // meaning that we would like this sensor fusion filter to operate
-    // a rate two or three times the output data rate of the sensor.
+    // meaning that we should operate this sensor fusion filter at a
+    // rate two or three times the output data rate of the sensor.
     //
-    // Within the Madgwick algorithm deliver your values
-    // in the expected format which is rad/s and m/s²
+    // Deliver sensor values at the Madgwick algorithm
+    // in the expected format which is rad/s, m/s² and mG (milliGauss)
+    //==================================================================
 
     if(pAcc->getInterruptSource(7)) {
         pAcc->get_Gxyz(&values[0]);
@@ -333,8 +355,8 @@ MainWindow::onLoopTimeElapsed() {
     pMadgwick->setInvFreq(delta);
     lastUpdate = now;
     pMadgwick->update(values[3], values[4], values[5],
-            values[0], values[1], values[2],
-            values[6], values[7], values[8]);
+                      values[0], values[1], values[2],
+                      values[6], values[7], values[8]);
 
 //    pMadgwick->updateIMU(values[3], values[4], values[5],
 //                         values[0], values[1], values[2]);
@@ -347,4 +369,7 @@ MainWindow::onLoopTimeElapsed() {
         pGLWidget->update();
         pPlotVal->UpdatePlot();
     }
+    input = pMadgwick->getPitch();
+    pPid->Compute();
+    pPlotVal->NewPoint(4, double(now), input);
 }

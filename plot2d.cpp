@@ -241,6 +241,20 @@ Plot2D::NewDataSet(int Id, int PenWidth, QColor Color, int Symbol, QString Title
 }
 
 
+bool
+Plot2D::ClearDataSet(int Id) {
+    bool bResult = false;
+    for(int i=0; i<dataSetList.count(); i++) {
+        DataStream2D* pDataItem = dataSetList.at(i);
+        if(pDataItem->GetId() == Id) {
+            pDataItem->RemoveAllPoints();
+            bResult = true;
+        }
+    }
+    return bResult;
+}
+
+
 void
 Plot2D::SetShowDataSet(int Id, bool Show) {
     if(!dataSetList.isEmpty()) {
