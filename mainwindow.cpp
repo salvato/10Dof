@@ -7,6 +7,7 @@
 #include <GLwidget.h>
 #include <QPushButton>
 #include "PID_v1.h"
+#include "MotorController.h"
 
 #include <cmath>
 

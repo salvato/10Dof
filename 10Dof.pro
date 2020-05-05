@@ -33,7 +33,8 @@ SOURCES += main.cpp\
     plot2d.cpp \
     plotpropertiesdlg.cpp \
     PID_v1.cpp \
-    utilities.cpp
+    utilities.cpp \
+    MotorController.cpp
 
 HEADERS  += mainwindow.h \
     geometryengine.h \
@@ -51,7 +52,8 @@ HEADERS  += mainwindow.h \
     plot2d.h \
     plotpropertiesdlg.h \
     PID_v1.h \
-    utilities.h
+    utilities.h \
+    MotorController.h
 
 FORMS    +=
 
