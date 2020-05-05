@@ -33,6 +33,8 @@
 #define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
 #define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
 
+#define MIN_ABS_SPEED 0
+
 //==============================================================
 // Informations for connecting servos:
 //
@@ -122,7 +124,6 @@ MainWindow::MainWindow()
     pMotorController = new MotorController(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
                                            PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
                                            motorSpeedFactorLeft, motorSpeedFactorRight);
-
     double originalSetpoint = 0.0;
     setpoint = originalSetpoint;
     movingAngleOffset = 0.1;
@@ -422,6 +423,7 @@ MainWindow::onLoopTimeElapsed() {
     }
     input = pMadgwick->getPitch();
     output = pPid->Compute(input, setpoint);
+    pMotorController->move(output, MIN_ABS_SPEED);
     if(bShowPidInProgress)
         pPlotVal->NewPoint(4, double(now-t0)/1000000.0, output);
 }

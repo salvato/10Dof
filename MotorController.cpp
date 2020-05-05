@@ -202,9 +202,14 @@ MotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed) {
                leftSpeed  > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
     // Set the pulse value for channel 1
-//====>>>>    TIM3->CCR1 = realRightSpeed * motor1Const; // ???????
-    // Set the pulse value for channel 2
-//====>>>>    TIM3->CCR2 = realLeftSpeed  * motor2Const; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, realRightSpeed * motor1Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, realLeftSpeed  * motor2Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -231,10 +236,14 @@ MotorController::move(int speed, int minAbsSpeed) {
     gpio_write(gpioHostHandle, mot2in1Pin, speed > 0 ? GPIO_PIN_SET   : GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in2Pin, speed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
-    // Set the pulse value for channel 1
-//====>>>>    TIM3->CCR1 = realSpeed * motor1Const; // ???????
-    // Set the pulse value for channel 2
-//====>>>>    TIM3->CCR2 = realSpeed * motor2Const; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, realSpeed * motor1Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, realSpeed  * motor2Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
     currentSpeed = direction * realSpeed;
 }
 
@@ -251,10 +260,14 @@ MotorController::move(int speed) {
     gpio_write(gpioHostHandle, mot2in1Pin, speed > 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in2Pin, speed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
-    // Set the pulse value for channel 1
-//====>>>>    TIM3->CCR1 = abs(speed) * motor1Const; // ???????
-    // Set the pulse value for channel 2
-//====>>>>    TIM3->CCR2 = abs(speed)  * motor2Const; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, abs(speed) * motor1Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, abs(speed)  * motor2Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
     currentSpeed = speed;
 }
 
@@ -267,14 +280,25 @@ MotorController::turnLeft(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_SET);
     
     if (kick) {
-//====>>>>        TIM3->CCR1 = 255; // ???????
-//====>>>>        TIM3->CCR2 = 255; // ???????
+        if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, 255) < 0) {
+            qDebug() << QString("Unable to start the PWM for Motor 1.");
+            exit(EXIT_FAILURE);
+        }
+        if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, 255) < 0) {
+            qDebug() << QString("Unable to start the PWM for Motor 2.");
+            exit(EXIT_FAILURE);
+        }
         QThread::msleep(100);
     }
     
-    // Set the pulse value for channel 1
-//====>>>>    TIM3->CCR1 = speed * motor1Const; // ???????
-//====>>>>    TIM3->CCR2 = speed * motor2Const; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, speed * motor1Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, speed * motor2Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -287,13 +311,24 @@ MotorController::turnRight(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_RESET);
 
     if (kick) {
-//====>>>>        TIM3->CCR1 = 255; // ???????
-//====>>>>        TIM3->CCR2 = 255; // ???????
+        if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, 255) < 0) {
+            qDebug() << QString("Unable to start the PWM for Motor 1.");
+            exit(EXIT_FAILURE);
+        }
+        if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, 255) < 0) {
+            qDebug() << QString("Unable to start the PWM for Motor 2.");
+            exit(EXIT_FAILURE);
+        }
         QThread::msleep(100);
     }
-    // Set the pulse value for channel 1
-//====>>>>    TIM3->CCR1 = speed * motor1Const; // ???????
-//====>>>>    TIM3->CCR2 = speed * motor2Const; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, speed * motor1Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, speed * motor2Const) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
 }
 
 
@@ -304,8 +339,14 @@ MotorController::stopMoving() {
     gpio_write(gpioHostHandle, mot2in1Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_RESET);
 
-//====>>>>    TIM3->CCR1 = 0; // ???????
-//====>>>>    TIM3->CCR2 = 0; // ???????
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, 0) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, 0) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
 
     currentSpeed = 0;
 }
