@@ -54,11 +54,13 @@ MainWindow::MainWindow()
     , bAccCalInProgress(false)
     , bGyroCalInProgress(false)
     , bMagCalInProgress(false)
+    , bShowPidInProgress(false)
 {
 
     buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
     buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
     buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
+    buttonShowPidOutput   = new QPushButton("Show PID",  this);
 
     connect(buttonAccCalibration, SIGNAL(clicked()),
             this, SLOT(onStartAccCalibration()));
@@ -66,6 +68,8 @@ MainWindow::MainWindow()
             this, SLOT(onStartGyroCalibration()));
     connect(buttonMagCalibration, SIGNAL(clicked()),
             this, SLOT(onStartMagCalibration()));
+    connect(buttonShowPidOutput, SIGNAL(clicked(bool)),
+            this, SLOT(onShowPidOutput()));
 
     pGLWidget = new GLWidget(this);
 
@@ -93,8 +97,8 @@ MainWindow::MainWindow()
 
     pGyro = new ITG3200(); // init ITG3200
     pGyro->init(ITG3200_DEF_ADDR);
-    QThread::msleep(1000);
-    pGyro->zeroCalibrate(128, 5); // calibrate the ITG3200
+    QThread::msleep(3000);
+    pGyro->zeroCalibrate(1024, 5); // calibrate the ITG3200
 
     pMagn = new HMC5883L();// init HMC5883L
     // The magnitude of the Earth's magnetic field at its surface
@@ -114,16 +118,18 @@ MainWindow::MainWindow()
 
     pMadgwick = new Madgwick();
 
-    double originalSetpoint = 175.8;
+    double originalSetpoint = 0.0;
     setpoint = originalSetpoint;
     movingAngleOffset = 0.1;
     moveState = 0; // 0 = balance; 1 = back; 2 = forth
-    Kp = 50.0;
+    Kp =  1.0;//50.0;
     Kd =  0.0;//1.4;
     Ki =  0.0;//60.0;
-    pPid = new PID(&input, &output, &setpoint,
-                   Kp, Ki, Kd,
-                   ControllerDirection);
+    pPid = new PID(Kp, Ki, Kd, ControllerDirection);
+
+    pPid->SetMode(AUTOMATIC);
+    pPid->SetSampleTime(100); // in ms
+    pPid->SetOutputLimits(-255, 255);
 
     sampleFrequency = 300;
     pMadgwick->begin(sampleFrequency);
@@ -177,8 +183,9 @@ MainWindow::initLayout() {
     firstButtonRow->addWidget(buttonAccCalibration);
     firstButtonRow->addWidget(buttonGyroCalibration);
     firstButtonRow->addWidget(buttonMagCalibration);
+    firstButtonRow->addWidget(buttonShowPidOutput);
 
-    QHBoxLayout *firstRow  = new QHBoxLayout;
+    QHBoxLayout *firstRow = new QHBoxLayout;
     firstRow->addWidget(pGLWidget);
     firstRow->addWidget(pPlotVal);
 
@@ -206,6 +213,7 @@ MainWindow::onStartAccCalibration() {
         bAccCalInProgress = false;
         buttonGyroCalibration->setEnabled(true);
         buttonMagCalibration->setEnabled(true);
+        buttonShowPidOutput->setEnabled(true);
     }
     else {
         pPlotVal->ClearDataSet(1);
@@ -219,10 +227,12 @@ MainWindow::onStartAccCalibration() {
 
         bGyroCalInProgress = false;
         bMagCalInProgress = false;
+        bShowPidInProgress = false;
         bAccCalInProgress = true;
         buttonAccCalibration->setText("Stop Cal.");
         buttonGyroCalibration->setDisabled(true);
         buttonMagCalibration->setDisabled(true);
+        buttonShowPidOutput->setDisabled(true);
         avgX = avgY = avgZ = 0.0;
         nAvg = 10;
         nCurr = 0;
@@ -238,6 +248,7 @@ MainWindow::onStartGyroCalibration() {
         bGyroCalInProgress = false;
         buttonAccCalibration->setEnabled(true);
         buttonMagCalibration->setEnabled(true);
+        buttonShowPidOutput->setEnabled(true);
     }
     else {
         pPlotVal->ClearDataSet(1);
@@ -249,12 +260,14 @@ MainWindow::onStartGyroCalibration() {
         pPlotVal->SetShowDataSet(3, true);
         pPlotVal->SetShowDataSet(4, false);
 
+        bShowPidInProgress = false;
         bMagCalInProgress = false;
         bAccCalInProgress = false;
         bGyroCalInProgress = true;
         buttonGyroCalibration->setText("Stop Cal.");
         buttonAccCalibration->setDisabled(true);
         buttonMagCalibration->setDisabled(true);
+        buttonShowPidOutput->setDisabled(true);
         angleX = 0.0;
         angleY = 0.0;
         angleZ = 0.0;
@@ -270,6 +283,7 @@ MainWindow::onStartMagCalibration() {
         buttonMagCalibration->setText("Mag. Cal.");
         buttonAccCalibration->setEnabled(true);
         buttonGyroCalibration->setEnabled(true);
+        buttonShowPidOutput->setEnabled(true);
     }
     else {
         pPlotVal->ClearDataSet(1);
@@ -285,8 +299,40 @@ MainWindow::onStartMagCalibration() {
         bAccCalInProgress = false;
         bGyroCalInProgress = false;
         bMagCalInProgress = true;
+        bShowPidInProgress = false;
         buttonAccCalibration->setDisabled(true);
         buttonGyroCalibration->setDisabled(true);
+        buttonShowPidOutput->setDisabled(true);
+        t0 = micros();
+    }
+}
+
+
+void
+MainWindow::onShowPidOutput() {
+    if(bShowPidInProgress) {
+        bShowPidInProgress = false;
+        buttonShowPidOutput->setText("Show PID");
+        buttonAccCalibration->setEnabled(true);
+        buttonGyroCalibration->setEnabled(true);
+        buttonMagCalibration->setEnabled(true);
+    }
+    else {
+        pPlotVal->ClearDataSet(4);
+
+        pPlotVal->SetShowDataSet(1, false);
+        pPlotVal->SetShowDataSet(2, false);
+        pPlotVal->SetShowDataSet(3, false);
+        pPlotVal->SetShowDataSet(4, true);
+
+        buttonShowPidOutput->setText("Hide Pid Out");
+        bAccCalInProgress  = false;
+        bGyroCalInProgress = false;
+        bMagCalInProgress  = false;
+        bShowPidInProgress = true;
+        buttonAccCalibration->setDisabled(true);
+        buttonGyroCalibration->setDisabled(true);
+        buttonMagCalibration->setDisabled(true);
         t0 = micros();
     }
 }
@@ -370,6 +416,7 @@ MainWindow::onLoopTimeElapsed() {
         pPlotVal->UpdatePlot();
     }
     input = pMadgwick->getPitch();
-    pPid->Compute();
-    pPlotVal->NewPoint(4, double(now), input);
+    output = pPid->Compute(input, setpoint);
+    if(bShowPidInProgress)
+        pPlotVal->NewPoint(4, double(now-t0)/1000000.0, output);
 }

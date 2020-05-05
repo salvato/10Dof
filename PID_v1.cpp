@@ -9,12 +9,11 @@
 #include "utilities.h"
 
 
-/*Constructor (...)*********************************************************
+/* Constructor (...)*********************************************************
  *    The parameters specified here are those for for which we can't set up
  *    reliable defaults, so we need to have the user set them.
  ***************************************************************************/
-PID::PID(double* Input, double* Output, double* Setpoint,
-         double Kp, double Ki, double Kd, int ControllerDirection)
+PID::PID(double Kp, double Ki, double Kd, int ControllerDirection)
 {
     PID::SetOutputLimits(0, 255);				//default output limit corresponds to
                                                 //the arduino pwm limits
@@ -26,9 +25,6 @@ PID::PID(double* Input, double* Output, double* Setpoint,
 
     lastTime = (micros()/1000)-SampleTime; //millis()-SampleTime;
     inAuto = false;
-    myOutput = Output;
-    myInput = Input;
-    mySetpoint = Setpoint;
 }
 
 
@@ -37,16 +33,15 @@ PID::PID(double* Input, double* Output, double* Setpoint,
  *   every time "void loop()" executes.  the function will decide for itself whether a new
  *   pid Output needs to be computed
  **********************************************************************************/
-void
-PID::Compute() {
-    if(!inAuto) return;
+double
+PID::Compute(double input, double setpoint) {
+    if(!inAuto) return output;
     unsigned long now = micros()/1000;
     unsigned long timeChange = (now - lastTime);
 
     if(timeChange >= SampleTime) {
         // Compute all the working error variables
-        double input = *myInput;
-        double error = *mySetpoint - input;
+        double error = setpoint - input;
         ITerm += (ki * error);
         if(ITerm > outMax)
             ITerm= outMax;
@@ -55,18 +50,18 @@ PID::Compute() {
         double dInput = (input - lastInput);
 
         // Compute PID Output
-        double output = kp * error + ITerm- kd * dInput;
+        output = kp * error + ITerm- kd * dInput;
 
         if(output > outMax)
             output = outMax;
         else if(output < outMin)
             output = outMin;
-        *myOutput = output;
 
         // Remember some variables for next time
         lastInput = input;
         lastTime = now;
     }
+    return output;
 }
 
 
@@ -126,15 +121,15 @@ PID::SetOutputLimits(double Min, double Max) {
     outMax = Max;
 
     if(inAuto) {
-        if(*myOutput > outMax)
-            *myOutput = outMax;
-        else if(*myOutput < outMin)
-            *myOutput = outMin;
+        if(output > outMax)
+            output = outMax;
+        else if(output < outMin)
+            output = outMin;
 
         if(ITerm > outMax)
-            ITerm= outMax;
+            ITerm = outMax;
         else if(ITerm < outMin)
-            ITerm= outMin;
+            ITerm = outMin;
     }
 }
 
@@ -148,7 +143,7 @@ void
 PID::SetMode(int Mode) {
     bool newAuto = (Mode == AUTOMATIC);
     if(newAuto == !inAuto) {  /*we just went from manual to auto*/
-        PID::Initialize();
+        PID::Initialize(lastInput);
     }
     inAuto = newAuto;
 }
@@ -159,9 +154,9 @@ PID::SetMode(int Mode) {
  *  from manual to automatic mode.
  ******************************************************************************/
 void
-PID::Initialize() {
-    ITerm = *myOutput;
-    lastInput = *myInput;
+PID::Initialize(double input) {
+    ITerm = output;
+    lastInput = input;
     if(ITerm > outMax)
         ITerm = outMax;
     else if(ITerm < outMin)

@@ -37,6 +37,7 @@ public slots:
     void onStartAccCalibration();
     void onStartGyroCalibration();
     void onStartMagCalibration();
+    void onShowPidOutput();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -50,6 +51,7 @@ private:
     QPushButton* buttonAccCalibration;
     QPushButton* buttonGyroCalibration;
     QPushButton* buttonMagCalibration;
+    QPushButton* buttonShowPidOutput;
 
     QTimer loopTimer;
 
@@ -80,6 +82,7 @@ private:
     bool bAccCalInProgress;
     bool bGyroCalInProgress;
     bool bMagCalInProgress;
+    bool bShowPidInProgress;
     // PID
     double Kp;
     double Ki;
@@ -88,5 +91,6 @@ private:
     int moveState;
     int ControllerDirection;
     double movingAngleOffset;
-    double input, output;
+    double input;
+    double output;
 };
