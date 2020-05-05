@@ -15,6 +15,7 @@ QT_FORWARD_DECLARE_CLASS(GLWidget)
 QT_FORWARD_DECLARE_CLASS(QPushButton)
 QT_FORWARD_DECLARE_CLASS(Plot2D)
 QT_FORWARD_DECLARE_CLASS(PID)
+QT_FORWARD_DECLARE_CLASS(MotorController)
 
 
 #define ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
@@ -45,9 +46,11 @@ protected:
     void initLayout();
 
 private:
-    GLWidget* pGLWidget;
-    Plot2D*   pPlotVal;
-    PID*      pPid;
+    GLWidget*        pGLWidget;
+    Plot2D*          pPlotVal;
+    PID*             pPid;
+    MotorController* pMotorController;
+
     QPushButton* buttonAccCalibration;
     QPushButton* buttonGyroCalibration;
     QPushButton* buttonMagCalibration;
@@ -93,4 +96,6 @@ private:
     double movingAngleOffset;
     double input;
     double output;
+    double motorSpeedFactorLeft;
+    double motorSpeedFactorRight;
 };

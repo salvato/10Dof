@@ -58,7 +58,7 @@ MotorController::MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
     //                125   100    80   50   40   25   20   10    5
     //===========================================================================
 
-    PWMfrequency    = 5000; // in Hz
+    PWMfrequency    = 1000; // in Hz
 
     gpioHostHandle = pigpio_start((char*)"localhost", (char*)"8888");
     if(gpioHostHandle < 0) {
@@ -69,25 +69,35 @@ MotorController::MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
     // set_PWM_frequency() returns the numerically closest frequency if OK
     int32_t iRealPWMfreq = set_PWM_frequency(gpioHostHandle, pwm1Pin, PWMfrequency);
     if(iRealPWMfreq < 0) {
-        qDebug() << QString("Non riesco a definire la frequenza del PWM per il Pan.");
+        qDebug() << QString("Unable to set the PWM frequency for Motor 1.");
         exit(EXIT_FAILURE);
     }
     PWMfrequency = iRealPWMfreq; // Now it is the Real PWM frequency
-    if(set_servo_pulsewidth(gpioHostHandle, pwm1Pin, 0) < 0) {
-        qDebug() << QString("Non riesco a far partire il PWM per il Motore 1.");
+    if(set_PWM_range(gpioHostHandle, pwm1Pin, 255) < 0) {
+        qDebug() << QString("Unable to set PWM range for Motor 1.");
         exit(EXIT_FAILURE);
     }
-    set_PWM_frequency(gpioHostHandle, pwm1Pin, 0); // To avoid oscillations
+    int32_t realRange = get_PWM_real_range(gpioHostHandle, pwm1Pin);
+    //Start (non-zero dutycycle) or stop (0) PWM pulses on the GPIO.
+    if(set_PWM_dutycycle(gpioHostHandle, pwm1Pin, 0) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 1.");
+        exit(EXIT_FAILURE);
+    }
 
     if(set_PWM_frequency(gpioHostHandle, pwm2Pin, PWMfrequency) < 0) {
-        qDebug() << QString("Non riesco a definire la frequenza del PWM per il Motore 2.");
+        qDebug() << QString("Unable to set the PWM frequency for Motor 2.");
         exit(EXIT_FAILURE);
     }
-    if(set_servo_pulsewidth(gpioHostHandle, pwm2Pin, 0) < 0) {
-        qDebug() << QString("Non riesco a far partire il PWM per il Motore 2.");
+    if(set_PWM_range(gpioHostHandle, pwm2Pin, realRange) < 0) {
+        qDebug() << QString("Unable to set PWM range for Motor 2.");
         exit(EXIT_FAILURE);
     }
-    set_PWM_frequency(gpioHostHandle, pwm2Pin, 0); // To avoid oscillations
+    //Start (non-zero dutycycle) or stop (0) PWM pulses on the GPIO.
+    if(set_PWM_dutycycle(gpioHostHandle, pwm2Pin, 0) < 0) {
+        qDebug() << QString("Unable to start the PWM for Motor 2.");
+        exit(EXIT_FAILURE);
+    }
+
     //=======================================================================
     // The real range, the number of steps between fully off and fully
     // on for each of the 18 available GPIO frequencies is
@@ -182,35 +192,19 @@ MotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed) {
     
     int realLeftSpeed = map(abs(leftSpeed), 0, 255, minAbsSpeed, 255);
 
-    gpio_write(gpioHostHandle, mot2in1Pin, rightSpeed > 0 ? GPIO_PIN_SET   : GPIO_PIN_RESET);
-    gpio_write(gpioHostHandle, mot2in2Pin, rightSpeed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-    gpio_write(gpioHostHandle, mot1in1Pin, leftSpeed  > 0 ? GPIO_PIN_SET   : GPIO_PIN_RESET);
-    gpio_write(gpioHostHandle, mot1in2Pin, leftSpeed  > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    gpio_write(gpioHostHandle, mot2in1Pin,
+               rightSpeed > 0 ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    gpio_write(gpioHostHandle, mot2in2Pin,
+               rightSpeed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+    gpio_write(gpioHostHandle, mot1in1Pin,
+               leftSpeed  > 0 ? GPIO_PIN_SET   : GPIO_PIN_RESET);
+    gpio_write(gpioHostHandle, mot1in2Pin,
+               leftSpeed  > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
     // Set the pulse value for channel 1
-    TIM3->CCR1 = realRightSpeed * motor1Const; // ???????
-    //    sConfig.Pulse = realRightSpeed * motor1Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = realRightSpeed * motor1Const; // ???????
     // Set the pulse value for channel 2
-    TIM3->CCR2 = realLeftSpeed  * motor2Const; // ???????
-    //    sConfig.Pulse = realLeftSpeed  * motor2Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR2 = realLeftSpeed  * motor2Const; // ???????
 }
 
 
@@ -238,30 +232,9 @@ MotorController::move(int speed, int minAbsSpeed) {
     gpio_write(gpioHostHandle, mot2in2Pin, speed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
     // Set the pulse value for channel 1
-    TIM3->CCR1 = realSpeed * motor1Const; // ???????
-    //    sConfig.Pulse = realSpeed * motor1Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = realSpeed * motor1Const; // ???????
     // Set the pulse value for channel 2
-    TIM3->CCR2 = realSpeed * motor2Const; // ???????
-    //    sConfig.Pulse = realSpeed  * motor2Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-
+//====>>>>    TIM3->CCR2 = realSpeed * motor2Const; // ???????
     currentSpeed = direction * realSpeed;
 }
 
@@ -279,30 +252,9 @@ MotorController::move(int speed) {
     gpio_write(gpioHostHandle, mot2in2Pin, speed > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 
     // Set the pulse value for channel 1
-    TIM3->CCR1 = abs(speed) * motor1Const; // ???????
-    //    sConfig.Pulse = abs(speed) * motor1Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = abs(speed) * motor1Const; // ???????
     // Set the pulse value for channel 2
-    TIM3->CCR2 = abs(speed)  * motor2Const; // ???????
-    //    sConfig.Pulse = abs(speed)  * motor2Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-
+//====>>>>    TIM3->CCR2 = abs(speed)  * motor2Const; // ???????
     currentSpeed = speed;
 }
 
@@ -315,56 +267,14 @@ MotorController::turnLeft(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_SET);
     
     if (kick) {
-        TIM3->CCR1 = 255; // ???????
-        TIM3->CCR2 = 255; // ???????
-        //        sConfig.Pulse = 255;
-        //        if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-        //            // Configuration Error
-        //            Error_Handler();
-        //        }
-        //        // Set the pulse value for channel 2
-        //        sConfig.Pulse = 255;
-        //        if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-        //            // Configuration Error
-        //            Error_Handler();
-        //        }
-        //        // Start PWM signal on channel 1
-        //        if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-        //            // PWM Generation Error
-        //            Error_Handler();
-        //        }
-        //        // Start PWM signal on channel 2
-        //        if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-        //            // PWM Generation Error
-        //            Error_Handler();
-        //        }
+//====>>>>        TIM3->CCR1 = 255; // ???????
+//====>>>>        TIM3->CCR2 = 255; // ???????
         QThread::msleep(100);
     }
     
     // Set the pulse value for channel 1
-    TIM3->CCR1 = speed * motor1Const; // ???????
-    TIM3->CCR2 = speed * motor2Const; // ???????
-    //    sConfig.Pulse = speed * motor1Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Set the pulse value for channel 2
-    //    sConfig.Pulse = speed * motor2Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = speed * motor1Const; // ???????
+//====>>>>    TIM3->CCR2 = speed * motor2Const; // ???????
 }
 
 
@@ -377,55 +287,13 @@ MotorController::turnRight(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_RESET);
 
     if (kick) {
-        TIM3->CCR1 = 255; // ???????
-        TIM3->CCR2 = 255; // ???????
-        // Set the pulse value for channel 1
-        //        sConfig.Pulse = 255;
-        //        if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-        //            // Configuration Error
-        //            Error_Handler();
-        //        }
-        //        // Set the pulse value for channel 2
-        //        if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-        //            // Configuration Error
-        //            Error_Handler();
-        //        }
-        //        // Start PWM signal on channel 1
-        //        if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-        //            // PWM Generation Error
-        //            Error_Handler();
-        //        }
-        //        // Start PWM signal on channel 2
-        //        if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-        //            // PWM Generation Error
-        //            Error_Handler();
-        //        }
+//====>>>>        TIM3->CCR1 = 255; // ???????
+//====>>>>        TIM3->CCR2 = 255; // ???????
         QThread::msleep(100);
     }
     // Set the pulse value for channel 1
-    TIM3->CCR1 = speed * motor1Const; // ???????
-    TIM3->CCR2 = speed * motor2Const; // ???????
-    //    sConfig.Pulse = speed * motor1Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Set the pulse value for channel 2
-    //    sConfig.Pulse = speed * motor2Const;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = speed * motor1Const; // ???????
+//====>>>>    TIM3->CCR2 = speed * motor2Const; // ???????
 }
 
 
@@ -436,29 +304,8 @@ MotorController::stopMoving() {
     gpio_write(gpioHostHandle, mot2in1Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in2Pin, GPIO_PIN_RESET);
 
-    TIM3->CCR1 = 0; // ???????
-    TIM3->CCR2 = 0; // ???????
-    //    // Set the pulse value for channel 1
-    //    sConfig.Pulse = 0;
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_1) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Set the pulse value for channel 2
-    //    if (HAL_TIM_PWM_ConfigChannel(&TimHandle, &sConfig, TIM_CHANNEL_2) != HAL_OK) {
-    //        // Configuration Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 1
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_1) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
-    //    // Start PWM signal on channel 2
-    //    if (HAL_TIM_PWM_Start(&TimHandle, TIM_CHANNEL_2) != HAL_OK) {
-    //        // PWM Generation Error
-    //        Error_Handler();
-    //    }
+//====>>>>    TIM3->CCR1 = 0; // ???????
+//====>>>>    TIM3->CCR2 = 0; // ???????
 
     currentSpeed = 0;
 }

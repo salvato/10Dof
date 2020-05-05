@@ -55,6 +55,8 @@ HEADERS  += mainwindow.h \
     utilities.h \
     MotorController.h
 
+LIBS += -lpigpiod_if2 # To include libpigpiod_if2.so from /usr/local/lib
+
 FORMS    +=
 
 RESOURCES += \

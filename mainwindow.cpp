@@ -26,11 +26,12 @@
 // GND on pins 6, 9, 14, 20, 25, 30, 34 or 39
 // in the 40 pin GPIO connector.
 
-// PWM 0 is on BCM12: Pin 32 in the 40 pin GPIO connector.
-// PWM 1 is on BCM13: Pin 33 in the 40 pin GPIO connector.
-
-// #define PAN_PIN  14 // GPIO Numbers are Broadcom (BCM) numbers
-// #define TILT_PIN 26 // GPIO Numbers are Broadcom (BCM) numbers
+#define PWM1_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
+#define M1IN1_PIN 17 // on BCM17: Pin 11 in the 40 pin GPIO connector.
+#define M1IN2_PIN 27 // on BCM27: Pin 13 in the 40 pin GPIO connector.
+#define PWM2_PIN  13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
+#define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
+#define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
 
 //==============================================================
 // Informations for connecting servos:
@@ -76,18 +77,15 @@ MainWindow::MainWindow()
 
     pPlotVal = new Plot2D(this, "Plot");
 
-    pPlotVal->NewDataSet(1, 1, QColor(255, 0, 0), Plot2D::ipoint, "X");
-    pPlotVal->NewDataSet(2, 1, QColor(0, 255, 0), Plot2D::ipoint, "Y");
-    pPlotVal->NewDataSet(3, 1, QColor(0, 0, 255), Plot2D::ipoint, "Z");
+    pPlotVal->NewDataSet(1, 1, QColor(255,   0,   0), Plot2D::ipoint, "X");
+    pPlotVal->NewDataSet(2, 1, QColor(  0, 255,   0), Plot2D::ipoint, "Y");
+    pPlotVal->NewDataSet(3, 1, QColor(  0,   0, 255), Plot2D::ipoint, "Z");
     pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID");
 
     pPlotVal->SetShowTitle(1, true);
     pPlotVal->SetShowTitle(2, true);
     pPlotVal->SetShowTitle(3, true);
     pPlotVal->SetShowTitle(4, true);
-
-    pPlotVal->SetShowDataSet(4, true);
-
 
     pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
 
@@ -118,6 +116,12 @@ MainWindow::MainWindow()
     //bmp085Calibration(); // init barometric pressure sensor
 
     pMadgwick = new Madgwick();
+
+    motorSpeedFactorLeft  = 0.6;
+    motorSpeedFactorRight = 0.5;
+    pMotorController = new MotorController(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
+                                           PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
+                                           motorSpeedFactorLeft, motorSpeedFactorRight);
 
     double originalSetpoint = 0.0;
     setpoint = originalSetpoint;
