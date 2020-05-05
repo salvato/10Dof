@@ -9,7 +9,8 @@
 
 #include <cmath>
 
-// Connections:
+// Hardware Connections:
+//
 // DFRobot 10DOF :
 //      SDA on BCM 2:    pin 3 in the 40 pins GPIO connector
 //      SDL on BCM 3:    pin 5 in the 40 pins GPIO connector
@@ -30,25 +31,19 @@
 // #define TILT_PIN 26 // GPIO Numbers are Broadcom (BCM) numbers
 
 //==============================================================
-// Informations for connecting two servos for camera Pan & Tilt:
+// Informations for connecting servos:
 //
-// For Raspberry Pi GPIO pin numbering see https://pinout.xyz/
-//
-// +5V pins 2 or 4 in the 40 pin GPIO connector.
-// GND on pins 6, 9, 14, 20, 25, 30, 34 or 39
-// in the 40 pin GPIO connector.
-//
-// Samwa servo pinout
-// 1) PWM Signal
-// 2) GND
-// 3) +5V
+// Samwa servo pinout:
+//      1) PWM Signal
+//      2) GND
+//      3) +5V
 //==============================================================
 
-// Addresses :
-// 0x1E     HMC5883L_Address        (Magnetometer)
-// 0x53     ADXL345_ADDR_ALT_LOW    (Accelerometer)
-// 0x68     ITG3200_ADDR_AD0_LOW    (Gyroscope)
-// 0x77     BMP085_ADDRESS          (Pressure and Temperature)
+// I2C Addresses :
+//      0x1E     HMC5883L_Address        (Magnetometer)
+//      0x53     ADXL345_ADDR_ALT_LOW    (Accelerometer)
+//      0x68     ITG3200_ADDR_AD0_LOW    (Gyroscope)
+//      0x77     BMP085_ADDRESS          (Pressure and Temperature)
 
 
 MainWindow::MainWindow()
