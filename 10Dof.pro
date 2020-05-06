@@ -65,4 +65,5 @@ RESOURCES += \
 
 DISTFILES += \
     plot.png \
-    Inertial-Frame.png
+    Inertial-Frame.png \
+    .gitignore
