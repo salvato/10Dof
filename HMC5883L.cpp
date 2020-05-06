@@ -163,7 +163,7 @@ HMC5883L::Write(uint8_t address, uint8_t val) {
                         + std::to_string(__LINE__)
                         + ")" );
         qDebug() << what.c_str();
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 }
 

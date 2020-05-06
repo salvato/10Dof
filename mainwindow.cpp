@@ -66,6 +66,7 @@ MainWindow::MainWindow()
     : pGLWidget(nullptr)
     , pPlotVal(nullptr)
     , pPid(nullptr)
+    , bRunInProgress(false)
     , bAccCalInProgress(false)
     , bGyroCalInProgress(false)
     , bMagCalInProgress(false)
@@ -126,12 +127,12 @@ MainWindow::MainWindow()
     int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
     if(error != 0) {
         qDebug() << pMagn->GetErrorText(error);
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
     error = pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
     if(error != 0)  {
         qDebug() << pMagn->GetErrorText(error);
-        //exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     //bmp085Calibration(); // init barometric pressure sensor
@@ -235,6 +236,7 @@ MainWindow::keyPressEvent(QKeyEvent *e) {
 void
 MainWindow::onStartStopPushed() {
     if(bRunInProgress) {
+        pMotorController->stopMoving();
         loopTimer.stop();
         bRunInProgress = false;
         buttonStartStop->setText("Start");
@@ -251,7 +253,8 @@ MainWindow::onStartStopPushed() {
         buttonMagCalibration->setEnabled(true);
         buttonShowPidOutput->setEnabled(true);
         lastUpdate = micros();
-        now = micros();
+        now = lastUpdate;
+        nUpdate = 0;
         loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
     }
 }
