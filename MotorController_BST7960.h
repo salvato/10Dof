@@ -1,13 +1,14 @@
 #pragma once
 #include <inttypes.h>
 
-class MotorController
+
+class MotorController_BST7960
 {
 public:
-    MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
-                    uint32_t _enb, uint32_t _in3, uint32_t _in4,
-                    double _motorAConst, double _motorBConst);
-    ~MotorController();
+    MotorController_BST7960(uint32_t pwm1Up, uint32_t pwm1Low,
+                            uint32_t pwm2Up, uint32_t pwm2Low,
+                            double _motorAConst, double _motorBConst);
+    ~MotorController_BST7960();
     void move(int leftSpeed, int rightSpeed, int minAbsSpeed);
     void move(int speed);
     void move(int speed, int minAbsSpeed);
@@ -16,13 +17,12 @@ public:
     void stopMoving();
 
 protected:
-    void initPins();
     int32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max);
 
 protected:
     int32_t  gpioHostHandle;
-    uint32_t pwm1Pin, mot1in1Pin, mot1in2Pin;
-    uint32_t pwm2Pin, mot2in1Pin, mot2in2Pin;
+    uint32_t pwm1UpPin, pwm1LowPin;
+    uint32_t pwm2UpPin, pwm2LowPin;
     uint32_t PWMfrequency;
     uint32_t dutyCycle;
     int32_t  currentSpeed;

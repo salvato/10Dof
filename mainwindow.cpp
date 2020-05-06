@@ -7,7 +7,8 @@
 #include <GLwidget.h>
 #include <QPushButton>
 #include "PID_v1.h"
-#include "MotorController.h"
+#include "MotorController_L298.h"
+#include "MotorController_BST7960.h"
 
 #include <cmath>
 
@@ -26,12 +27,22 @@
 // GND on pins 6, 9, 14, 20, 25, 30, 34 or 39
 // in the 40 pin GPIO connector.
 
-#define PWM1_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
-#define M1IN1_PIN 17 // on BCM17: Pin 11 in the 40 pin GPIO connector.
-#define M1IN2_PIN 27 // on BCM27: Pin 13 in the 40 pin GPIO connector.
-#define PWM2_PIN  13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
-#define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
-#define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
+// For L298 MotorController
+//#define PWM1_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
+//#define M1IN1_PIN 17 // on BCM17: Pin 11 in the 40 pin GPIO connector.
+//#define M1IN2_PIN 27 // on BCM27: Pin 13 in the 40 pin GPIO connector.
+//#define PWM2_PIN  13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
+//#define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
+//#define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
+
+// For BST760 MotorController
+//uint32_t pwm1Up, uint32_t pwm1Low,
+//uint32_t pwm2Up, uint32_t pwm2Low,
+
+#define PWM1UP_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
+#define PWM1LOW_PIN 13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
+#define PWM2UP_PIN  22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
+#define PWM2LOW_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
 
 #define MIN_ABS_SPEED 0
 
@@ -60,12 +71,20 @@ MainWindow::MainWindow()
     , bMagCalInProgress(false)
     , bShowPidInProgress(false)
 {
-
+    buttonStartStop       = new QPushButton("Start",     this);
     buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
     buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
     buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
     buttonShowPidOutput   = new QPushButton("Show PID",  this);
 
+    buttonStartStop->setEnabled(true);
+    buttonAccCalibration->setEnabled(false);
+    buttonGyroCalibration->setEnabled(false);
+    buttonMagCalibration->setEnabled(false);
+    buttonShowPidOutput->setEnabled(false);
+
+    connect(buttonStartStop, SIGNAL(clicked()),
+            this, SLOT(onStartStopPushed()));
     connect(buttonAccCalibration, SIGNAL(clicked()),
             this, SLOT(onStartAccCalibration()));
     connect(buttonGyroCalibration, SIGNAL(clicked()),
@@ -121,9 +140,12 @@ MainWindow::MainWindow()
 
     motorSpeedFactorLeft  = 0.6;
     motorSpeedFactorRight = 0.5;
-    pMotorController = new MotorController(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
-                                           PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
-                                           motorSpeedFactorLeft, motorSpeedFactorRight);
+//    pMotorController = new MotorController_L298(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
+//                                                PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
+//                                                motorSpeedFactorLeft, motorSpeedFactorRight);
+    pMotorController = new MotorController_BST7960(PWM1UP_PIN, PWM1LOW_PIN,
+                                                   PWM2UP_PIN, PWM2LOW_PIN,
+                                                   motorSpeedFactorLeft, motorSpeedFactorRight);
     double originalSetpoint = 0.0;
     setpoint = originalSetpoint;
     movingAngleOffset = 0.1;
@@ -159,9 +181,6 @@ MainWindow::MainWindow()
     }
     pMadgwick->getRotation(&q0, &q1, &q2, &q3);
     pGLWidget->setRotation(q0, q1, q2, q3);
-    lastUpdate = micros();
-    now = micros();
-    loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
 }
 
 
@@ -186,6 +205,7 @@ MainWindow::closeEvent(QCloseEvent *event) {
 void
 MainWindow::initLayout() {
     QHBoxLayout *firstButtonRow = new QHBoxLayout;
+    firstButtonRow->addWidget(buttonStartStop);
     firstButtonRow->addWidget(buttonAccCalibration);
     firstButtonRow->addWidget(buttonGyroCalibration);
     firstButtonRow->addWidget(buttonMagCalibration);
@@ -209,6 +229,31 @@ MainWindow::keyPressEvent(QKeyEvent *e) {
     close();
   else
     QWidget::keyPressEvent(e);
+}
+
+
+void
+MainWindow::onStartStopPushed() {
+    if(bRunInProgress) {
+        loopTimer.stop();
+        bRunInProgress = false;
+        buttonStartStop->setText("Start");
+        buttonAccCalibration->setEnabled(false);
+        buttonGyroCalibration->setEnabled(false);
+        buttonMagCalibration->setEnabled(false);
+        buttonShowPidOutput->setEnabled(false);
+    }
+    else {
+        bRunInProgress = true;
+        buttonStartStop->setText("Stop");
+        buttonAccCalibration->setEnabled(true);
+        buttonGyroCalibration->setEnabled(true);
+        buttonMagCalibration->setEnabled(true);
+        buttonShowPidOutput->setEnabled(true);
+        lastUpdate = micros();
+        now = micros();
+        loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
+    }
 }
 
 

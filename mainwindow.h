@@ -15,7 +15,8 @@ QT_FORWARD_DECLARE_CLASS(GLWidget)
 QT_FORWARD_DECLARE_CLASS(QPushButton)
 QT_FORWARD_DECLARE_CLASS(Plot2D)
 QT_FORWARD_DECLARE_CLASS(PID)
-QT_FORWARD_DECLARE_CLASS(MotorController)
+QT_FORWARD_DECLARE_CLASS(MotorController_L298)
+QT_FORWARD_DECLARE_CLASS(MotorController_BST7960)
 
 
 #define ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
@@ -39,6 +40,7 @@ public slots:
     void onStartGyroCalibration();
     void onStartMagCalibration();
     void onShowPidOutput();
+    void onStartStopPushed();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -49,12 +51,15 @@ private:
     GLWidget*        pGLWidget;
     Plot2D*          pPlotVal;
     PID*             pPid;
-    MotorController* pMotorController;
+
+    //MotorController_L298* pMotorController;
+    MotorController_BST7960* pMotorController;
 
     QPushButton* buttonAccCalibration;
     QPushButton* buttonGyroCalibration;
     QPushButton* buttonMagCalibration;
     QPushButton* buttonShowPidOutput;
+    QPushButton* buttonStartStop;
 
     QTimer loopTimer;
 
@@ -82,6 +87,7 @@ private:
     double angleX, angleY, angleZ;
     double avgX, avgY, avgZ;
     uint16_t nAvg, nCurr;
+    bool bRunInProgress;
     bool bAccCalInProgress;
     bool bGyroCalInProgress;
     bool bMagCalInProgress;

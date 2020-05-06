@@ -34,7 +34,8 @@ SOURCES += main.cpp\
     plotpropertiesdlg.cpp \
     PID_v1.cpp \
     utilities.cpp \
-    MotorController.cpp
+    MotorController_BST7960.cpp \
+    MotorController_L298.cpp
 
 HEADERS  += mainwindow.h \
     geometryengine.h \
@@ -53,7 +54,8 @@ HEADERS  += mainwindow.h \
     plotpropertiesdlg.h \
     PID_v1.h \
     utilities.h \
-    MotorController.h
+    MotorController_BST7960.h \
+    MotorController_L298.h
 
 LIBS += -lpigpiod_if2 # To include libpigpiod_if2.so from /usr/local/lib
 

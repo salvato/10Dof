@@ -1,4 +1,4 @@
-#include "MotorController.h"
+#include "MotorController_L298.h"
 #include "pigpiod_if2.h" // The library to use GPIO pins on Raspberry
 
 
@@ -39,7 +39,7 @@ using namespace std; // min() & max()
 //========================================
 
 
-MotorController::MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
+MotorController_L298::MotorController_L298(uint32_t _ena, uint32_t _in1, uint32_t _in2,
                                  uint32_t _enb, uint32_t _in3, uint32_t _in4,
                                  double _motor1Const, double _motor2Const)
 {
@@ -139,7 +139,7 @@ MotorController::MotorController(uint32_t _ena, uint32_t _in1, uint32_t _in2,
 
 
 void
-MotorController::initPins() {
+MotorController_L298::initPins() {
 
     // Motor 1 Pins
     if(set_mode(gpioHostHandle, mot1in1Pin, PI_OUTPUT) < 0) {
@@ -180,7 +180,7 @@ MotorController::initPins() {
 }
 
 
-MotorController::~MotorController() {
+MotorController_L298::~MotorController_L298() {
     if(gpioHostHandle>=0) {
         pigpio_stop(gpioHostHandle);
     }
@@ -188,13 +188,13 @@ MotorController::~MotorController() {
 
 
 int32_t
-MotorController::map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max) {
+MotorController_L298::map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max) {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 
 void
-MotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed) {
+MotorController_L298::move(int leftSpeed, int rightSpeed, int minAbsSpeed) {
     if (rightSpeed < 0) {
         rightSpeed = min(rightSpeed, -1*minAbsSpeed);
         rightSpeed = max(rightSpeed, -255);
@@ -239,7 +239,7 @@ MotorController::move(int leftSpeed, int rightSpeed, int minAbsSpeed) {
 
 
 void
-MotorController::move(int speed, int minAbsSpeed) {
+MotorController_L298::move(int speed, int minAbsSpeed) {
     int direction = 1;
     
     if (speed < 0) {
@@ -274,7 +274,7 @@ MotorController::move(int speed, int minAbsSpeed) {
 
 
 void
-MotorController::move(int speed) {
+MotorController_L298::move(int speed) {
     if (speed == currentSpeed) return;
     
     if (speed > 255) speed = 255;
@@ -298,7 +298,7 @@ MotorController::move(int speed) {
 
 
 void
-MotorController::turnLeft(int speed, bool kick) {
+MotorController_L298::turnLeft(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot1in1Pin, GPIO_PIN_SET);
     gpio_write(gpioHostHandle, mot1in2Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in1Pin, GPIO_PIN_RESET);
@@ -328,7 +328,7 @@ MotorController::turnLeft(int speed, bool kick) {
 
 
 void
-MotorController::turnRight(int speed, bool kick) {
+MotorController_L298::turnRight(int speed, bool kick) {
     gpio_write(gpioHostHandle, mot1in1Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot1in2Pin, GPIO_PIN_SET);
 
@@ -358,7 +358,7 @@ MotorController::turnRight(int speed, bool kick) {
 
 
 void
-MotorController::stopMoving() {
+MotorController_L298::stopMoving() {
     gpio_write(gpioHostHandle, mot1in1Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot1in2Pin, GPIO_PIN_RESET);
     gpio_write(gpioHostHandle, mot2in1Pin, GPIO_PIN_RESET);
