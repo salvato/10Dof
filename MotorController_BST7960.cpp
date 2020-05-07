@@ -164,6 +164,8 @@ MotorController_BST7960::MotorController_BST7960(uint32_t pwm1Up, uint32_t pwm1L
     //=======================================================================
     // The real value set by set_PWM_range() is (dutycycle*real_range)/range.
     //=======================================================================
+
+    currentSpeed = 0;
 }
 
 

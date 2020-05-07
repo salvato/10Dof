@@ -214,6 +214,12 @@ MainWindow::closeEvent(QCloseEvent *event) {
     loopTimer.stop();
 
     saveSettings();
+    if(pPid) delete pPid;
+    if(pMadgwick) delete pMadgwick;
+    if(pMotorController) delete pMotorController;
+    if(pMagn) delete pMagn;
+    if(pGyro) delete pGyro;
+    if(pAcc) delete pAcc;
 }
 
 

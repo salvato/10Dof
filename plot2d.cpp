@@ -756,9 +756,9 @@ Plot2D::DrawLastPoint(QPainter* painter, DataStream2D* pData) {
     }
     else {
         iy = int((Pf.bottom + (pData->m_pointArrayY[i] - Ax.YMin)*yfact));
-        if(ix<=Pf.right && ix>=Pf.left && iy>=Pf.top && iy<=Pf.bottom)
-            painter->drawPoint(ix, iy);
     }
+    if(ix<=Pf.right && ix>=Pf.left && iy>=Pf.top && iy<=Pf.bottom)
+        painter->drawPoint(ix, iy);
     return;
 }
 

@@ -15,18 +15,18 @@
  ***************************************************************************/
 PID::PID(double Kp, double Ki, double Kd, int ControllerDirection)
 {
-    PID::SetOutputLimits(0, 255);				//default output limit corresponds to
-                                                //the arduino pwm limits
-
-    SampleTime = 100;							//default Controller Sample Time in ms
+    lastInput = 0.0;
+    output    = 0.0;
+    inAuto    = false;
+    ITerm     = 0.0;
+    controllerDirection = DIRECT;
+    SetOutputLimits(0, 255);
+    SampleTime = 100; //default Controller Sample Time in ms
 
     PID::SetControllerDirection(ControllerDirection);
     PID::SetTunings(Kp, Ki, Kd);
 
-    output = 0.0;
-    lastTime = (micros()/1000)-SampleTime; //millis()-SampleTime;
-    lastInput = 0.0;
-    inAuto = false;
+    lastTime  = (micros()/1000)-SampleTime; //millis()-SampleTime;
 }
 
 
