@@ -84,6 +84,7 @@ MainWindow::MainWindow()
     , bGyroCalInProgress(false)
     , bMagCalInProgress(false)
     , bShowPidInProgress(false)
+    , bShow3DInProgress(true)
 {
     restoreSettings();
 
@@ -92,8 +93,10 @@ MainWindow::MainWindow()
     buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
     buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
     buttonShowPidOutput   = new QPushButton("Show PID",  this);
+    buttonHide3D          = new QPushButton("Hide3D",    this);
 
     buttonStartStop->setEnabled(true);
+    buttonHide3D->setEnabled(true);
     buttonAccCalibration->setEnabled(false);
     buttonGyroCalibration->setEnabled(false);
     buttonMagCalibration->setEnabled(false);
@@ -109,6 +112,8 @@ MainWindow::MainWindow()
             this, SLOT(onStartMagCalibration()));
     connect(buttonShowPidOutput, SIGNAL(clicked(bool)),
             this, SLOT(onShowPidOutput()));
+    connect(buttonHide3D, SIGNAL(clicked()),
+            this, SLOT(onHide3DPushed()));
 
     pGLWidget = new GLWidget(this);
 
@@ -267,6 +272,7 @@ void
 MainWindow::initLayout() {
     QHBoxLayout *firstButtonRow = new QHBoxLayout;
     firstButtonRow->addWidget(buttonStartStop);
+    firstButtonRow->addWidget(buttonHide3D);
     firstButtonRow->addWidget(buttonAccCalibration);
     firstButtonRow->addWidget(buttonGyroCalibration);
     firstButtonRow->addWidget(buttonMagCalibration);
@@ -329,6 +335,18 @@ MainWindow::onStartStopPushed() {
 
 
 void
+MainWindow::onHide3DPushed() {
+    if(bShow3DInProgress) {
+        buttonHide3D->setText("Show 3D");
+    }
+    else {
+        buttonHide3D->setText("Hide3D");
+    }
+    bShow3DInProgress = !bShow3DInProgress;
+}
+
+
+void
 MainWindow::onStartAccCalibration() {
     if(bAccCalInProgress) {
         buttonAccCalibration->setText("Acc. Cal.");
@@ -352,6 +370,7 @@ MainWindow::onStartAccCalibration() {
         bMagCalInProgress = false;
         bShowPidInProgress = false;
         bAccCalInProgress = true;
+
         buttonAccCalibration->setText("Stop Cal.");
         buttonGyroCalibration->setDisabled(true);
         buttonMagCalibration->setDisabled(true);
@@ -536,7 +555,7 @@ MainWindow::onLoopTimeElapsed() {
 
     nUpdate++;
     nUpdate = nUpdate % 10;
-    if(!nUpdate) {
+    if(!nUpdate && bShow3DInProgress) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
         pGLWidget->setRotation(q0, q1, q2, q3);
         pGLWidget->update();
@@ -545,7 +564,7 @@ MainWindow::onLoopTimeElapsed() {
     input = pMadgwick->getPitch();
     output = pPid->Compute(input, setpoint);
     pMotorController->move(output, MIN_ABS_SPEED);
-    if(bShowPidInProgress) {
+    if(bShowPidInProgress && bShow3DInProgress) {
         double x = double(now-t0)/1000000.0;
         pPlotVal->NewPoint(4, x, double(input));
         pPlotVal->NewPoint(5, x, double(output/Kp));

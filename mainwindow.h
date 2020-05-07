@@ -41,6 +41,7 @@ public slots:
     void onStartMagCalibration();
     void onShowPidOutput();
     void onStartStopPushed();
+    void onHide3DPushed();
 
 protected:
     void closeEvent(QCloseEvent *event);
