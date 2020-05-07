@@ -46,6 +46,8 @@ protected:
     void closeEvent(QCloseEvent *event);
     void keyPressEvent(QKeyEvent *event);
     void initLayout();
+    void restoreSettings();
+    void saveSettings();
 
 private:
     GLWidget*        pGLWidget;
@@ -60,10 +62,11 @@ private:
     QPushButton* buttonMagCalibration;
     QPushButton* buttonShowPidOutput;
     QPushButton* buttonStartStop;
+    QPushButton* buttonHide3D;
 
     QTimer loopTimer;
 
-    float sampleFrequency;
+    float samplingFrequency;
     float values[9];
     float angles[3]; // yaw pitch roll
     float heading;
@@ -76,6 +79,8 @@ private:
     HMC5883L* pMagn;
     Madgwick* pMadgwick;
 
+    float GyroXOffset, GyroYOffset, GyroZOffset;
+
     // Record any errors that may occur in the compass.
     int error;
     int nUpdate;
@@ -87,11 +92,14 @@ private:
     double angleX, angleY, angleZ;
     double avgX, avgY, avgZ;
     uint16_t nAvg, nCurr;
+
     bool bRunInProgress;
     bool bAccCalInProgress;
     bool bGyroCalInProgress;
     bool bMagCalInProgress;
     bool bShowPidInProgress;
+    bool bShow3DInProgress;
+
     // PID
     double Kp;
     double Ki;

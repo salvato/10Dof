@@ -166,7 +166,7 @@ PID::Initialize(double input) {
 }
 
 
-/* SetControllerDirection(...)*************************************************
+/* SetControllerDirection()****************************************************
  * The PID will either be connected to a DIRECT acting process (+Output leads
  * to +Input) or a REVERSE acting process(+Output leads to -Input.)  we need to
  * know which one, because otherwise we may increase the output when we should

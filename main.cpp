@@ -14,8 +14,10 @@ main(int argc, char *argv[]) {
     format.setDepthBufferSize(24);
     QSurfaceFormat::setDefaultFormat(format);
 
-    app.setApplicationName("10 DOF");
-    app.setApplicationVersion("0.1");
+    QCoreApplication::setOrganizationDomain("Gabriele.Salvato");
+    QCoreApplication::setOrganizationName("Gabriele.Salvato");
+    QCoreApplication::setApplicationName("10DOF");
+    QCoreApplication::setApplicationVersion("0.1");
 
 #ifndef QT_NO_OPENGL
     MainWindow w;

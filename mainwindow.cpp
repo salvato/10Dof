@@ -10,6 +10,8 @@
 #include <QThread>
 #include <GLwidget.h>
 #include <QPushButton>
+#include <QSettings>
+
 #include "PID_v1.h"
 #if defined(L298)
     #include "MotorController_L298.h"
@@ -83,6 +85,8 @@ MainWindow::MainWindow()
     , bMagCalInProgress(false)
     , bShowPidInProgress(false)
 {
+    restoreSettings();
+
     buttonStartStop       = new QPushButton("Start",     this);
     buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
     buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
@@ -128,29 +132,27 @@ MainWindow::MainWindow()
 
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(ACC_ADDR);
-    // Sets the range setting, possible values are: 2, 4, 8, 16
+    // Sets the range setting, possible values are: 2g, 4g, 8g, 16g
     pAcc->setRangeSetting(2); // +/-2g
-
 
     pGyro = new ITG3200(); // init ITG3200
     pGyro->init(ITG3200_DEF_ADDR);
-    QThread::msleep(1000);
-
-    pGyro->zeroCalibrate(600, 10); // calibrate the ITG3200
+//   if(Stationary() { // Gyro calibration done only when stationary
+    if(false) {
+        QThread::msleep(1000);
+        pGyro->zeroCalibrate(600, 10); // calibrate the ITG3200
+    }
+    else {
+        pGyro->offsets[0] = GyroXOffset;
+        pGyro->offsets[1] = GyroYOffset;
+        pGyro->offsets[2] = GyroZOffset;
+    }
 
     pMagn = new HMC5883L();// init HMC5883L
     // The magnitude of the Earth's magnetic field at its surface
     // ranges from 250 to 650 milli Gauss.
-    int16_t error = pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
-    if(error != 0) {
-        qDebug() << pMagn->GetErrorText(error);
-        exit(EXIT_FAILURE);
-    }
-    error = pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
-    if(error != 0)  {
-        qDebug() << pMagn->GetErrorText(error);
-        exit(EXIT_FAILURE);
-    }
+    pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
+    pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
 
     //bmp085Calibration(); // init barometric pressure sensor
 
@@ -169,22 +171,15 @@ MainWindow::MainWindow()
 #else
     #error "Undefined Motor Controller"
 #endif
-    ControllerDirection = DIRECT;
-    double originalSetpoint = 0.0;
-    setpoint = originalSetpoint;
-    movingAngleOffset = 0.1;
-    moveState = 0; // 0 = balance; 1 = back; 2 = forth
-    Kp =  1.0;//50.0;
-    Kd =  0.0;//1.4;
-    Ki =  0.0;//60.0;
-    pPid = new PID(Kp, Ki, Kd, ControllerDirection);
 
+    setpoint = 0.0;
+    pPid = new PID(Kp, Ki, Kd, ControllerDirection);
     pPid->SetMode(AUTOMATIC);
     pPid->SetSampleTime(100); // in ms
     pPid->SetOutputLimits(-255, 255);
 
-    sampleFrequency = 300;
-    pMadgwick->begin(sampleFrequency);
+    samplingFrequency = 300;
+    pMadgwick->begin(samplingFrequency);
 
     // Consider to change to QBasicTimer that it's faster than QTimer
     loopTimer.setTimerType(Qt::PreciseTimer);
@@ -209,8 +204,6 @@ MainWindow::MainWindow()
 
 
 MainWindow::~MainWindow() {
-    if(pGLWidget) delete pGLWidget;
-    pGLWidget = nullptr;
 }
 
 
@@ -219,10 +212,47 @@ MainWindow::closeEvent(QCloseEvent *event) {
     Q_UNUSED(event)
     pMotorController->stopMoving();
     loopTimer.stop();
-    if(pGLWidget) delete pGLWidget;
-    pGLWidget = nullptr;
-    if(pPlotVal) delete pPlotVal;
-    pPlotVal = nullptr;
+
+    saveSettings();
+}
+
+
+void
+MainWindow::restoreSettings() {
+    QSettings settings;
+
+    // Restore Geometry and State of the window
+    restoreGeometry(settings.value("Geometry").toByteArray());
+
+    // Gyroscope
+    GyroXOffset = settings.value("GyroXOffset", 1.0).toFloat();
+    GyroYOffset = settings.value("GyroYOffset", 1.0).toFloat();
+    GyroZOffset = settings.value("GyroZOffset", 1.0).toFloat();
+
+    // PID
+    ControllerDirection     = settings.value("ControllerDirection", 0).toInt();
+    Kp                      = settings.value("Kp",                  1.0).toDouble();
+    Kd                      = settings.value("Kd",                  0.0).toDouble();
+    Ki                      = settings.value("Ki",                  0.0).toDouble();
+}
+
+
+void
+MainWindow::saveSettings() {
+    QSettings settings;
+
+    settings.setValue("Geometry", saveGeometry());
+
+    // Gyroscope
+    settings.setValue("GyroXOffset", pGyro->offsets[0]);
+    settings.setValue("GyroYOffset", pGyro->offsets[1]);
+    settings.setValue("GyroZOffset", pGyro->offsets[2]);
+
+    // PID
+    settings.setValue("ControllerDirection", ControllerDirection);
+    settings.setValue("Kp", Kp);
+    settings.setValue("Kd", Kd);
+    settings.setValue("Ki", Ki);
 }
 
 
@@ -263,6 +293,14 @@ MainWindow::onStartStopPushed() {
         pMotorController->stopMoving();
         loopTimer.stop();
         bRunInProgress = false;
+        if(bAccCalInProgress)
+            onStartAccCalibration();
+        if(bGyroCalInProgress)
+            onStartGyroCalibration();
+        if(bMagCalInProgress)
+            onStartMagCalibration();
+        if(bShowPidInProgress)
+            onShowPidOutput();
         buttonStartStop->setText("Start");
         buttonAccCalibration->setEnabled(false);
         buttonGyroCalibration->setEnabled(false);
@@ -279,7 +317,7 @@ MainWindow::onStartStopPushed() {
         lastUpdate = micros();
         now = lastUpdate;
         nUpdate = 0;
-        loopTimer.start(int32_t(1000.0/sampleFrequency+0.5));
+        loopTimer.start(int32_t(1000.0/samplingFrequency+0.5));
     }
 }
 
@@ -400,6 +438,7 @@ MainWindow::onShowPidOutput() {
     }
     else {
         pPlotVal->ClearDataSet(4);
+        pPlotVal->ClearDataSet(5);
 
         pPlotVal->SetShowDataSet(1, false);
         pPlotVal->SetShowDataSet(2, false);
