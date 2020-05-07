@@ -503,6 +503,8 @@ MainWindow::onLoopTimeElapsed() {
     if(bShowPidInProgress) {
         double x = double(now-t0)/1000000.0;
         pPlotVal->NewPoint(4, x, double(input));
-        pPlotVal->NewPoint(5, x, double(-output/Kp));
+        pPlotVal->NewPoint(5, x, double(output/Kp));
+//        pPlotVal->NewPoint(4, x, double(input-(output/Kp)));
+//        pPlotVal->NewPoint(5, x, double(output/Kp));
     }
 }
