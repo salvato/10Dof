@@ -49,6 +49,9 @@ protected:
     void initLayout();
     void restoreSettings();
     void saveSettings();
+    void createButtons();
+    void createPlot();
+    bool isStationary();
 
 private:
     GLWidget*        pGLWidget;
@@ -82,9 +85,9 @@ private:
 
     float GyroXOffset, GyroYOffset, GyroZOffset;
 
-    // Record any errors that may occur in the compass.
-    int error;
-    int nUpdate;
+    int update3D;
+    int updatePlot;
+
     uint64_t lastUpdate;
     uint64_t now;
     uint64_t t0;

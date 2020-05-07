@@ -59,6 +59,7 @@
 
 #define MIN_ABS_SPEED 0
 
+
 //==============================================================
 // Informations for connecting servos:
 //
@@ -75,6 +76,10 @@
 //      0x77     BMP085_ADDRESS          (Pressure and Temperature)
 
 
+// The magnitude of the Earth's magnetic field at its surface
+// ranges from 250 to 650 milli Gauss.
+
+
 MainWindow::MainWindow()
     : pGLWidget(nullptr)
     , pPlotVal(nullptr)
@@ -87,63 +92,18 @@ MainWindow::MainWindow()
     , bShow3DInProgress(true)
 {
     restoreSettings();
-
-    buttonStartStop       = new QPushButton("Start",     this);
-    buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
-    buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
-    buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
-    buttonShowPidOutput   = new QPushButton("Show PID",  this);
-    buttonHide3D          = new QPushButton("Hide3D",    this);
-
-    buttonStartStop->setEnabled(true);
-    buttonHide3D->setEnabled(true);
-    buttonAccCalibration->setEnabled(false);
-    buttonGyroCalibration->setEnabled(false);
-    buttonMagCalibration->setEnabled(false);
-    buttonShowPidOutput->setEnabled(false);
-
-    connect(buttonStartStop, SIGNAL(clicked()),
-            this, SLOT(onStartStopPushed()));
-    connect(buttonAccCalibration, SIGNAL(clicked()),
-            this, SLOT(onStartAccCalibration()));
-    connect(buttonGyroCalibration, SIGNAL(clicked()),
-            this, SLOT(onStartGyroCalibration()));
-    connect(buttonMagCalibration, SIGNAL(clicked()),
-            this, SLOT(onStartMagCalibration()));
-    connect(buttonShowPidOutput, SIGNAL(clicked(bool)),
-            this, SLOT(onShowPidOutput()));
-    connect(buttonHide3D, SIGNAL(clicked()),
-            this, SLOT(onHide3DPushed()));
-
+    createButtons();
     pGLWidget = new GLWidget(this);
-
-    pPlotVal = new Plot2D(this, "Plot");
-
-    pPlotVal->NewDataSet(1, 1, QColor(255,   0,   0), Plot2D::ipoint, "X");
-    pPlotVal->NewDataSet(2, 1, QColor(  0, 255,   0), Plot2D::ipoint, "Y");
-    pPlotVal->NewDataSet(3, 1, QColor(  0,   0, 255), Plot2D::ipoint, "Z");
-    pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID-In");
-    pPlotVal->NewDataSet(5, 1, QColor(255, 255,  64), Plot2D::ipoint, "PID-Out");
-
-    pPlotVal->SetShowTitle(1, true);
-    pPlotVal->SetShowTitle(2, true);
-    pPlotVal->SetShowTitle(3, true);
-    pPlotVal->SetShowTitle(4, true);
-    pPlotVal->SetShowTitle(5, true);
-
-    pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
-
+    createPlot();
     initLayout();
 
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(ACC_ADDR);
-    // Sets the range setting, possible values are: 2g, 4g, 8g, 16g
-    pAcc->setRangeSetting(2); // +/-2g
+    pAcc->setRangeSetting(2); // +/-2g. Possible values are: 2g, 4g, 8g, 16g
 
     pGyro = new ITG3200(); // init ITG3200
     pGyro->init(ITG3200_DEF_ADDR);
-//   if(Stationary() { // Gyro calibration done only when stationary
-    if(false) {
+    if(isStationary()) { // Gyro calibration done only when stationary
         QThread::msleep(1000);
         pGyro->zeroCalibrate(600, 10); // calibrate the ITG3200
     }
@@ -154,8 +114,6 @@ MainWindow::MainWindow()
     }
 
     pMagn = new HMC5883L();// init HMC5883L
-    // The magnitude of the Earth's magnetic field at its surface
-    // ranges from 250 to 650 milli Gauss.
     pMagn->SetScale(1300); // Set the scale (in milli Gauss) of the compass.
     pMagn->SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
 
@@ -173,8 +131,6 @@ MainWindow::MainWindow()
     pMotorController = new MotorController_BST7960(PWM1UP_PIN, PWM1LOW_PIN,
                                                    PWM2UP_PIN, PWM2LOW_PIN,
                                                    motorSpeedFactorLeft, motorSpeedFactorRight);
-#else
-    #error "Undefined Motor Controller"
 #endif
 
     setpoint = 0.0;
@@ -198,7 +154,7 @@ MainWindow::MainWindow()
     while(!pMagn->isDataReady()) {}
     pMagn->ReadScaledAxis(&values[6]);
 
-    for(int i=0; i< 10000; i++) {
+    for(int i=0; i<10000; i++) {
         pMadgwick->update(values[3], values[4], values[5],
                 values[0], values[1], values[2],
                 values[6], values[7], values[8]);
@@ -267,6 +223,56 @@ MainWindow::saveSettings() {
 }
 
 
+void
+MainWindow::createButtons() {
+    buttonStartStop       = new QPushButton("Start",     this);
+    buttonAccCalibration  = new QPushButton("Acc. Cal.", this);
+    buttonGyroCalibration = new QPushButton("Gyro Cal.", this);
+    buttonMagCalibration  = new QPushButton("Mag. Cal.", this);
+    buttonShowPidOutput   = new QPushButton("Show PID",  this);
+    buttonHide3D          = new QPushButton("Hide3D",    this);
+
+    buttonStartStop->setEnabled(true);
+    buttonHide3D->setEnabled(true);
+    buttonAccCalibration->setEnabled(false);
+    buttonGyroCalibration->setEnabled(false);
+    buttonMagCalibration->setEnabled(false);
+    buttonShowPidOutput->setEnabled(false);
+
+    connect(buttonStartStop, SIGNAL(clicked()),
+            this, SLOT(onStartStopPushed()));
+    connect(buttonAccCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartAccCalibration()));
+    connect(buttonGyroCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartGyroCalibration()));
+    connect(buttonMagCalibration, SIGNAL(clicked()),
+            this, SLOT(onStartMagCalibration()));
+    connect(buttonShowPidOutput, SIGNAL(clicked(bool)),
+            this, SLOT(onShowPidOutput()));
+    connect(buttonHide3D, SIGNAL(clicked()),
+            this, SLOT(onHide3DPushed()));
+}
+
+
+void
+MainWindow::createPlot() {
+    pPlotVal = new Plot2D(this, "Plot");
+
+    pPlotVal->NewDataSet(1, 1, QColor(255,   0,   0), Plot2D::ipoint, "X");
+    pPlotVal->NewDataSet(2, 1, QColor(  0, 255,   0), Plot2D::ipoint, "Y");
+    pPlotVal->NewDataSet(3, 1, QColor(  0,   0, 255), Plot2D::ipoint, "Z");
+    pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID-In");
+    pPlotVal->NewDataSet(5, 1, QColor(255, 255,  64), Plot2D::ipoint, "PID-Out");
+
+    pPlotVal->SetShowTitle(1, true);
+    pPlotVal->SetShowTitle(2, true);
+    pPlotVal->SetShowTitle(3, true);
+    pPlotVal->SetShowTitle(4, true);
+    pPlotVal->SetShowTitle(5, true);
+
+    pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
+}
+
 
 void
 MainWindow::initLayout() {
@@ -287,6 +293,12 @@ MainWindow::initLayout() {
     mainLayout->addLayout(firstButtonRow);
 
     setLayout(mainLayout);
+}
+
+
+bool
+MainWindow::isStationary() {
+    return false;
 }
 
 
@@ -328,7 +340,8 @@ MainWindow::onStartStopPushed() {
         buttonShowPidOutput->setEnabled(true);
         lastUpdate = micros();
         now = lastUpdate;
-        nUpdate = 0;
+        update3D = 0;
+        updatePlot = 0;
         loopTimer.start(int32_t(1000.0/samplingFrequency+0.5));
     }
 }
@@ -553,13 +566,22 @@ MainWindow::onLoopTimeElapsed() {
 //    pMadgwick->updateIMU(values[3], values[4], values[5],
 //                         values[0], values[1], values[2]);
 
-    nUpdate++;
-    nUpdate = nUpdate % 10;
-    if(!nUpdate && bShow3DInProgress) {
+    update3D++;
+    updatePlot++;
+    update3D %= 30;
+    updatePlot %= 150;
+    if(!update3D && bShow3DInProgress) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
         pGLWidget->setRotation(q0, q1, q2, q3);
         pGLWidget->update();
-        pPlotVal->UpdatePlot();
+    }
+    if(!updatePlot && bShow3DInProgress) {
+        if(bShowPidInProgress | bAccCalInProgress  |
+           bGyroCalInProgress | bMagCalInProgress  |
+           bShowPidInProgress)
+        {
+            pPlotVal->UpdatePlot();
+        }
     }
     input = pMadgwick->getPitch();
     output = pPid->Compute(input, setpoint);
