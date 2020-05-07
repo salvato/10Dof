@@ -567,14 +567,14 @@ MainWindow::onLoopTimeElapsed() {
 //                         values[0], values[1], values[2]);
 
     update3D++;
-    updatePlot++;
     update3D %= 30;
-    updatePlot %= 150;
     if(!update3D && bShow3DInProgress) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
         pGLWidget->setRotation(q0, q1, q2, q3);
         pGLWidget->update();
     }
+    updatePlot++;
+    updatePlot %= 150;
     if(!updatePlot && bShow3DInProgress) {
         if(bShowPidInProgress | bAccCalInProgress  |
            bGyroCalInProgress | bMagCalInProgress  |
