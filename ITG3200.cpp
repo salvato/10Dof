@@ -288,7 +288,7 @@ ITG3200::setOffsets(int16_t _Xoffset, int16_t _Yoffset, int16_t _Zoffset) {
 void
 ITG3200::zeroCalibrate(uint16_t totSamples, uint16_t sampleDelayMS) {
     int16_t xyz[3];
-    float tmpOffsets[] = {0, 0, 0};
+    float tmpOffsets[] = {0.0f, 0.0f, 0.0f};
 
     for(uint16_t i=0; i<totSamples; i++) {
         QThread::msleep(sampleDelayMS);
@@ -297,7 +297,9 @@ ITG3200::zeroCalibrate(uint16_t totSamples, uint16_t sampleDelayMS) {
         tmpOffsets[1] += xyz[1];
         tmpOffsets[2] += xyz[2];
     }
-    setOffsets(-tmpOffsets[0]/totSamples, -tmpOffsets[1]/totSamples, -tmpOffsets[2]/totSamples);
+    setOffsets(-int16_t(tmpOffsets[0]/totSamples),
+               -int16_t(tmpOffsets[1]/totSamples),
+               -int16_t(tmpOffsets[2]/totSamples));
 }
 
 

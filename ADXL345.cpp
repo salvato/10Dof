@@ -33,9 +33,9 @@ ADXL345::ADXL345() {
     status = ADXL345_OK;
     error_code = ADXL345_NO_ERROR;
 
-    gains[0] = 0.00376390;
-    gains[1] = 0.00376009;
-    gains[2] = 0.00349265;
+    gains[0] = 0.0039; // 3.9mg/LSB (see datasheet)
+    gains[1] = 0.0039;
+    gains[2] = 0.0039;
 }
 
 
@@ -52,6 +52,7 @@ ADXL345::init(int16_t address) {
         exit(EXIT_FAILURE);
     }
     powerOn();
+    setAxisOffset(0, 0, 0);
 }
 
 
@@ -60,7 +61,7 @@ ADXL345::powerOn() {
     //Turning on the ADXL345
     //writeTo(ADXL345_POWER_CTL, 0);
     //writeTo(ADXL345_POWER_CTL, 16);
-    writeTo(ADXL345_POWER_CTL, 8);
+    writeTo(ADXL345_POWER_CTL, 8);// Set the Measure Bit
 }
 
 
@@ -91,7 +92,7 @@ ADXL345::get_Gxyz(float *xyz){
     int16_t xyz_int[3];
     readAccel(xyz_int);
     for(i=0; i<3; i++){
-        xyz[i] = xyz_int[i] * gains[i];
+        xyz[i] = xyz_int[i]*gains[i];
     }
 }
 

@@ -1,3 +1,7 @@
+//#define L298
+#define BST760
+
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "plot2d.h"
@@ -7,8 +11,13 @@
 #include <GLwidget.h>
 #include <QPushButton>
 #include "PID_v1.h"
-#include "MotorController_L298.h"
-#include "MotorController_BST7960.h"
+#if defined(L298)
+    #include "MotorController_L298.h"
+#elif defined(BST760)
+    #include "MotorController_BST7960.h"
+#else
+    #error "Undefined Motor Controller"
+#endif
 
 #include <cmath>
 
@@ -27,22 +36,24 @@
 // GND on pins 6, 9, 14, 20, 25, 30, 34 or 39
 // in the 40 pin GPIO connector.
 
-// For L298 MotorController
-//#define PWM1_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
-//#define M1IN1_PIN 17 // on BCM17: Pin 11 in the 40 pin GPIO connector.
-//#define M1IN2_PIN 27 // on BCM27: Pin 13 in the 40 pin GPIO connector.
-//#define PWM2_PIN  13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
-//#define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
-//#define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
+#if defined(L298)
+    // L298 MotorController
+    #define PWM1_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
+    #define M1IN1_PIN 17 // on BCM17: Pin 11 in the 40 pin GPIO connector.
+    #define M1IN2_PIN 27 // on BCM27: Pin 13 in the 40 pin GPIO connector.
+    #define PWM2_PIN  13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
+    #define M2IN1_PIN 22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
+    #define M2IN2_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
+#elif defined(BST760)
+    // BST760 MotorController
+    #define PWM1UP_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
+    #define PWM1LOW_PIN 13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
+    #define PWM2UP_PIN  22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
+    #define PWM2LOW_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
+#else
+    #error "Undefined Motor Controller"
+#endif
 
-// For BST760 MotorController
-//uint32_t pwm1Up, uint32_t pwm1Low,
-//uint32_t pwm2Up, uint32_t pwm2Low,
-
-#define PWM1UP_PIN  12 // on BCM12: Pin 32 in the 40 pin GPIO connector.
-#define PWM1LOW_PIN 13 // on BCM13: Pin 33 in the 40 pin GPIO connector.
-#define PWM2UP_PIN  22 // on BCM22: Pin 15 in the 40 pin GPIO connector.
-#define PWM2LOW_PIN 23 // on BCM23: Pin 16 in the 40 pin GPIO connector.
 
 #define MIN_ABS_SPEED 0
 
@@ -102,12 +113,14 @@ MainWindow::MainWindow()
     pPlotVal->NewDataSet(1, 1, QColor(255,   0,   0), Plot2D::ipoint, "X");
     pPlotVal->NewDataSet(2, 1, QColor(  0, 255,   0), Plot2D::ipoint, "Y");
     pPlotVal->NewDataSet(3, 1, QColor(  0,   0, 255), Plot2D::ipoint, "Z");
-    pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID");
+    pPlotVal->NewDataSet(4, 1, QColor(255, 255, 255), Plot2D::ipoint, "PID-In");
+    pPlotVal->NewDataSet(5, 1, QColor(255, 255,  64), Plot2D::ipoint, "PID-Out");
 
     pPlotVal->SetShowTitle(1, true);
     pPlotVal->SetShowTitle(2, true);
     pPlotVal->SetShowTitle(3, true);
     pPlotVal->SetShowTitle(4, true);
+    pPlotVal->SetShowTitle(5, true);
 
     pPlotVal->SetLimits(-1.0, 1.0, -1.0, 1.0, true, true, false, false);
 
@@ -115,11 +128,15 @@ MainWindow::MainWindow()
 
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(ACC_ADDR);
+    // Sets the range setting, possible values are: 2, 4, 8, 16
+    pAcc->setRangeSetting(2); // +/-2g
+
 
     pGyro = new ITG3200(); // init ITG3200
     pGyro->init(ITG3200_DEF_ADDR);
-    QThread::msleep(3000);
-    pGyro->zeroCalibrate(1024, 5); // calibrate the ITG3200
+    QThread::msleep(1000);
+
+    pGyro->zeroCalibrate(600, 10); // calibrate the ITG3200
 
     pMagn = new HMC5883L();// init HMC5883L
     // The magnitude of the Earth's magnetic field at its surface
@@ -141,12 +158,18 @@ MainWindow::MainWindow()
 
     motorSpeedFactorLeft  = 0.6;
     motorSpeedFactorRight = 0.5;
-//    pMotorController = new MotorController_L298(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
-//                                                PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
-//                                                motorSpeedFactorLeft, motorSpeedFactorRight);
+#if defined(L298)
+    pMotorController = new MotorController_L298(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
+                                                PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
+                                                motorSpeedFactorLeft, motorSpeedFactorRight);
+#elif defined(BST760)
     pMotorController = new MotorController_BST7960(PWM1UP_PIN, PWM1LOW_PIN,
                                                    PWM2UP_PIN, PWM2LOW_PIN,
                                                    motorSpeedFactorLeft, motorSpeedFactorRight);
+#else
+    #error "Undefined Motor Controller"
+#endif
+    ControllerDirection = DIRECT;
     double originalSetpoint = 0.0;
     setpoint = originalSetpoint;
     movingAngleOffset = 0.1;
@@ -194,6 +217,7 @@ MainWindow::~MainWindow() {
 void
 MainWindow::closeEvent(QCloseEvent *event) {
     Q_UNUSED(event)
+    pMotorController->stopMoving();
     loopTimer.stop();
     if(pGLWidget) delete pGLWidget;
     pGLWidget = nullptr;
@@ -278,6 +302,7 @@ MainWindow::onStartAccCalibration() {
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
         pPlotVal->SetShowDataSet(4, false);
+        pPlotVal->SetShowDataSet(5, false);
 
         bGyroCalInProgress = false;
         bMagCalInProgress = false;
@@ -313,6 +338,7 @@ MainWindow::onStartGyroCalibration() {
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
         pPlotVal->SetShowDataSet(4, false);
+        pPlotVal->SetShowDataSet(5, false);
 
         bShowPidInProgress = false;
         bMagCalInProgress = false;
@@ -348,6 +374,7 @@ MainWindow::onStartMagCalibration() {
         pPlotVal->SetShowDataSet(2, true);
         pPlotVal->SetShowDataSet(3, true);
         pPlotVal->SetShowDataSet(4, false);
+        pPlotVal->SetShowDataSet(5, false);
 
         buttonMagCalibration->setText("Stop Cal.");
         bAccCalInProgress = false;
@@ -378,6 +405,7 @@ MainWindow::onShowPidOutput() {
         pPlotVal->SetShowDataSet(2, false);
         pPlotVal->SetShowDataSet(3, false);
         pPlotVal->SetShowDataSet(4, true);
+        pPlotVal->SetShowDataSet(5, true);
 
         buttonShowPidOutput->setText("Hide Pid Out");
         bAccCalInProgress  = false;
@@ -472,6 +500,9 @@ MainWindow::onLoopTimeElapsed() {
     input = pMadgwick->getPitch();
     output = pPid->Compute(input, setpoint);
     pMotorController->move(output, MIN_ABS_SPEED);
-    if(bShowPidInProgress)
-        pPlotVal->NewPoint(4, double(now-t0)/1000000.0, output);
+    if(bShowPidInProgress) {
+        double x = double(now-t0)/1000000.0;
+        pPlotVal->NewPoint(4, x, double(input));
+        pPlotVal->NewPoint(5, x, double(-output/Kp));
+    }
 }

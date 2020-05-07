@@ -2,15 +2,15 @@
 
 #define LIBRARY_VERSION	1.0.0
 
-
-class PID
-{
-public:
-    //Constants used in some of the functions below
+//Constants used in some of the functions below
 #define AUTOMATIC	1
 #define MANUAL	    0
 #define DIRECT      0
 #define REVERSE     1
+
+class PID
+{
+public:
 
     //commonly used functions **************************************************************************
     PID(double Kp, double Ki, double Kd,

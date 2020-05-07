@@ -102,7 +102,6 @@ public:
     bool status;           // set when error occurs
                            // see error code for details
     byte error_code;       // Initial state
-    float gains[3];        // counts to Gs
 
     ADXL345();
     void init(int16_t address);
@@ -204,6 +203,7 @@ private:
     void setRegisterBit(byte regAdress, int16_t bitPos, bool state);
     bool getRegisterBit(byte regAdress, int16_t bitPos);
     byte _buff[6];    //6 bytes buffer for saving data read from the device
+    float gains[3];   // counts  to g (Gravity)
     int16_t _dev_address;
 };
 

@@ -24,6 +24,7 @@ PID::PID(double Kp, double Ki, double Kd, int ControllerDirection)
     PID::SetTunings(Kp, Ki, Kd);
 
     lastTime = (micros()/1000)-SampleTime; //millis()-SampleTime;
+    lastInput = 0.0;
     inAuto = false;
 }
 
