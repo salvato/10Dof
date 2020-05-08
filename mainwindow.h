@@ -17,6 +17,8 @@ QT_FORWARD_DECLARE_CLASS(Plot2D)
 QT_FORWARD_DECLARE_CLASS(PID)
 QT_FORWARD_DECLARE_CLASS(MotorController_L298)
 QT_FORWARD_DECLARE_CLASS(MotorController_BST7960)
+QT_FORWARD_DECLARE_CLASS(QTcpServer)
+QT_FORWARD_DECLARE_CLASS(QTcpSocket)
 
 
 #define ACC_ADDR ADXL345_ADDR_ALT_LOW          // SDO connected to GND
@@ -42,6 +44,9 @@ public slots:
     void onShowPidOutput();
     void onStartStopPushed();
     void onHide3DPushed();
+    void onNewTcpConnection();
+    void onTcpClientDisconnected();
+    void onReadFromServer();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -52,6 +57,7 @@ protected:
     void createButtons();
     void createPlot();
     bool isStationary();
+    int  openTcpSession();
 
 private:
     GLWidget*        pGLWidget;
@@ -116,4 +122,7 @@ private:
     double output;
     double motorSpeedFactorLeft;
     double motorSpeedFactorRight;
+    QTcpServer*   pTcpServer;
+    QTcpSocket*   pTcpServerConnection;
+    int           serverPort;
 };

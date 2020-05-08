@@ -11,6 +11,10 @@
 #include <GLwidget.h>
 #include <QPushButton>
 #include <QSettings>
+#include <QtNetwork/QTcpServer>
+#include <QtNetwork/QTcpSocket>
+#include <QtNetwork/QHostAddress>
+
 
 #include "PID_v1.h"
 #if defined(L298)
@@ -61,7 +65,7 @@
 
 
 //==============================================================
-// Informations for connecting servos:
+// Information for connecting servos:
 //
 // Samwa servo pinout:
 //      1) PWM Signal
@@ -90,12 +94,21 @@ MainWindow::MainWindow()
     , bMagCalInProgress(false)
     , bShowPidInProgress(false)
     , bShow3DInProgress(true)
+    // TCP-IP Server
+    , pTcpServer(nullptr)
+    , pTcpServerConnection(nullptr)
+    , serverPort(43210)
 {
     restoreSettings();
     createButtons();
     pGLWidget = new GLWidget(this);
     createPlot();
     initLayout();
+
+    if(openTcpSession()) {
+        qDebug() << QString("Impossible to open a TCP-IP Session !");
+        exit(EXIT_FAILURE);
+    }
 
     pAcc  = new ADXL345(); // init ADXL345
     pAcc->init(ACC_ADDR);
@@ -175,6 +188,11 @@ MainWindow::closeEvent(QCloseEvent *event) {
     loopTimer.stop();
 
     saveSettings();
+
+    if(pTcpServer) {
+        pTcpServer->close();
+        delete pTcpServer;
+    }
     if(pPid) delete pPid;
     if(pMadgwick) delete pMadgwick;
     if(pMotorController) delete pMotorController;
@@ -220,6 +238,219 @@ MainWindow::saveSettings() {
     settings.setValue("Kp", Kp);
     settings.setValue("Kd", Kd);
     settings.setValue("Ki", Ki);
+}
+
+
+int
+MainWindow::openTcpSession() {
+    pTcpServer = new QTcpServer(this);
+    if(!pTcpServer->listen(QHostAddress::Any, serverPort)) {
+        qDebug()  << "TCP-IP Unable to start listen()";
+        return -1;
+    }
+    connect(pTcpServer, SIGNAL(newConnection()),
+            this, SLOT(onNewTcpConnection()));
+    connect(pTcpServer, SIGNAL(acceptError(QAbstractSocket::SocketError)),
+            this, SLOT(onTcpError(QAbstractSocket::SocketError)));
+    QString ipAddress;
+    QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
+    // use the first non-localhost IPv4 address
+    for(qint32 i=0; i<ipAddressesList.size(); ++i) {
+        if(ipAddressesList.at(i) != QHostAddress::LocalHost && ipAddressesList.at(i).toIPv4Address()) {
+            ipAddress = ipAddressesList.at(i).toString();
+            if(ipAddress.left(3) != QString("169")) break;
+        }
+    }
+    // if we did not find one, use IPv4 localhost
+    if(ipAddress.isEmpty()) ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
+    qDebug() << QString("Running TCP-IP server at address %1 port:%2")
+                .arg(ipAddress)
+                .arg(pTcpServer->serverPort());
+    return 0;
+}
+
+
+void
+MainWindow::onTcpError(QAbstractSocket::SocketError error) {
+    sDebugMessage = QString();
+    sInformation  << dateTime.currentDateTime().toString();
+    if(error == QAbstractSocket::ConnectionRefusedError)
+        sInformation << " The connection was refused by the peer (or timed out).";
+    else if(error == QAbstractSocket::RemoteHostClosedError) {
+        sInformation << " The remote host closed the connection.";
+        qDebug() << sDebugMessage;
+        return;
+    } else if(error == QAbstractSocket::HostNotFoundError)
+        sInformation << " The host address was not found.";
+    else if(error == QAbstractSocket::SocketAccessError)
+        sInformation << " The socket operation failed because the application lacked the required privileges.";
+    else if(error == QAbstractSocket::SocketResourceError)
+        sInformation << " The local system ran out of resources (e.g., too many sockets).";
+    else if(error == QAbstractSocket::SocketTimeoutError)
+        sInformation << " The socket operation timed out.";
+    else if(error == QAbstractSocket::DatagramTooLargeError)
+        sInformation << " The datagram was larger than the operating system's limit (which can be as low as 8192 bytes).";
+    else if(error == QAbstractSocket::NetworkError)
+        sInformation << " An error occurred with the network (e.g., the network cable was accidentally plugged out).";
+    else if(error == QAbstractSocket::AddressInUseError)
+        sInformation << " The address specified to QAbstractSocket::bind() is already in use and was set to be exclusive.";
+    else if(error == QAbstractSocket::SocketAddressNotAvailableError)
+        sInformation << " The address specified to QAbstractSocket::bind() does not belong to the host.";
+    else if(error == QAbstractSocket::UnsupportedSocketOperationError)
+        sInformation << " The requested socket operation is not supported by the local operating system (e.g., lack of IPv6 support).";
+    else if(error == QAbstractSocket::ProxyAuthenticationRequiredError)
+        sInformation << " The socket is using a proxy, and the proxy requires authentication.";
+    else if(error == QAbstractSocket::SslHandshakeFailedError)
+        sInformation << " The SSL/TLS handshake failed, so the connection was closed (only used in QSslSocket)";
+    else if(error == QAbstractSocket::UnfinishedSocketOperationError)
+        sInformation << " Used by QAbstractSocketEngine only, The last operation attempted has not finished yet (still in progress in the background).";
+    else if(error == QAbstractSocket::ProxyConnectionRefusedError)
+        sInformation << " Could not contact the proxy server because the connection to that server was denied";
+    else if(error == QAbstractSocket::ProxyConnectionClosedError)
+        sInformation << " The connection to the proxy server was closed unexpectedly (before the connection to the final peer was established)";
+    else if(error == QAbstractSocket::ProxyConnectionTimeoutError)
+        sInformation << " The connection to the proxy server timed out or the proxy server stopped responding in the authentication phase.";
+    else if(error == QAbstractSocket::ProxyNotFoundError)
+        sInformation << " The proxy address set with setProxy() (or the application proxy) was not found.";
+    else if(error == QAbstractSocket::ProxyProtocolError)
+        sInformation << " The connection negotiation with the proxy server failed, because the response from the proxy server could not be understood.";
+    else if(error == QAbstractSocket::OperationError)
+        sInformation << " An operation was attempted while the socket was in a state that did not permit it.";
+    else if(error == QAbstractSocket::SslInternalError)
+        sInformation << " The SSL library being used reported an internal error. This is probably the result of a bad installation or misconfiguration of the library.";
+    else if(error == QAbstractSocket::SslInvalidUserDataError)
+        sInformation << " Invalid data (certificate, key, cypher, etc.) was provided and its use resulted in an error in the SSL library.";
+    else if(error == QAbstractSocket::TemporaryError)
+        sInformation << " A temporary error occurred (e.g., operation would block and socket is non-blocking).";
+    else if(error == QAbstractSocket::UnknownSocketError)
+        sInformation << " An unidentified error occurred.";
+
+    ErrorHandler(sDebugMessage);
+}
+
+
+void
+MainWindow::onNewTcpConnection() {
+    pTcpServerConnection = pTcpServer->nextPendingConnection();
+    connect(pTcpServerConnection, SIGNAL(readyRead()),
+            this, SLOT(onReadFromServer()));
+    connect(pTcpServerConnection, SIGNAL(error(QAbstractSocket::SocketError)),
+            this, SLOT(onTcpError(QAbstractSocket::SocketError)));
+    connect(pTcpServerConnection, SIGNAL(disconnected()),
+            this, SLOT(onTcpClientDisconnected()));
+
+    sDebugMessage = QString();
+    sInformation  << dateTime.currentDateTime().toString()
+                  << " Connected to: "
+                  << pTcpServerConnection->peerAddress().toString();
+    qDebug() << sDebugMessage;
+    SetSpeed(0, 0);
+    SetAirValveOut(AIR_VALVE_OFF);
+    SetAirValveIn(AIR_VALVE_OFF);
+    connectionWatchDogTimer.start(connectionWatchDogTime);
+}
+
+
+void
+MainWindow::onTcpClientDisconnected() {
+    qDebug() << QString("Disconnection from: %1")
+                .arg(pTcpServerConnection->peerAddress().toString());
+    pTcpServerConnection = NULL;
+}
+
+
+void
+MainWindow::onReadFromServer() {
+    message.append(pTcpServerConnection->readAll());
+    while(message.length() > 1) {
+        int iTarget = qint8(message.at(0));
+        int iValue = qint8(message.at(1));
+        message.remove(0, 2);
+        executeCommand(iTarget, iValue);
+    }
+}
+
+
+void
+MainWindow::executeCommand(int iTarget, int iValue) {
+    if(iTarget == yAxisController) {
+          iValue = - iValue;
+        if(SetSpeed(iLastSpeedX, iValue) != 0) {
+          ErrorHandler("Unable to set Motor speeds");
+          return;
+        }
+        iLastSpeedY = iValue;
+    }
+    else if(iTarget == xAxisController) {
+        if(SetSpeed(iValue, iLastSpeedY) != 0) {
+          ErrorHandler("Unable to set Motor speeds");
+          return;
+        }
+        iLastSpeedX = iValue;
+    }
+    else if(iTarget == DeflateButton) {
+        SetAirValveOut(iValue);
+    }
+    else if(iTarget == InflateButton) {
+        SetAirValveIn(iValue);
+    }
+    else if(iTarget == pitchAxis) {
+        iValue = - iValue;
+        if(SetThrusterSpeed(iLastSpeedFront, iValue) != 0) {
+          ErrorHandler("Unable to set Thruster speeds");
+          return;
+        }
+        iLastSpeedRear = iValue;
+    }
+    else if(iTarget == upDownAxis) {
+        if(SetThrusterSpeed(iValue, iLastSpeedRear) != 0) {
+          ErrorHandler("Unable to set Thruster speeds");
+          return;
+        }
+        iLastSpeedFront = iValue;
+    }
+    else if(iTarget == depthSensor) {
+        if(GetRovDepth() != 0) {
+          ErrorHandler("Unable to ask ROV depth");
+          return;
+        }
+    }
+    else if(iTarget == SetOrientation) {
+        if(pShimmerSensor) {
+            pShimmerSensor->isWaitingOrientation = true;
+        }
+    }
+    else if(iTarget == StillAlive) {
+        connectionWatchDogTimer.start(connectionWatchDogTime);
+        if(pTcpServerConnection) {
+            if(pTcpServerConnection->isOpen()) {
+              QString message;
+                message = QString("alive#");
+                pTcpServerConnection->write(message.toLatin1());
+            }
+        }
+    }
+}
+
+
+void
+MainWindow::periodicUpdateWidgets() {
+    if(pTcpServerConnection) {
+        if(pTcpServerConnection->isOpen()) {
+            QString message;
+            message = QString("box_pos %1 %2 %3 %4 %5 %6 %7 %8#")
+                    .arg(0)
+                    .arg(pShimmerSensor->shimmerBox.x)
+                    .arg(pShimmerSensor->shimmerBox.y)
+                    .arg(pShimmerSensor->shimmerBox.z)
+                    .arg(pShimmerSensor->shimmerBox.pos[0])
+                    .arg(pShimmerSensor->shimmerBox.pos[1])
+                    .arg(pShimmerSensor->shimmerBox.pos[2])
+                    .arg(pShimmerSensor->shimmerBox.angle);
+            pTcpServerConnection->write(message.toLatin1());
+        }
+    }
+    updateTimer.start(updateTime);
 }
 
 

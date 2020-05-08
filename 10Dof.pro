@@ -4,10 +4,10 @@
 #
 #-------------------------------------------------
 
-QT       += core
-QT       += gui
-QT       += widgets
-
+QT += core
+QT += gui
+QT += widgets
+Qt += network
 
 TARGET = 10Dof
 TEMPLATE = app
