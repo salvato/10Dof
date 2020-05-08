@@ -7,6 +7,7 @@
 #include <ITG3200.h>
 #include <HMC5883L.h>
 #include <MadgwickAHRS.h>
+#include <QtNetwork/QAbstractSocket>
 
 #include "utilities.h"
 
@@ -46,18 +47,22 @@ public slots:
     void onHide3DPushed();
     void onNewTcpConnection();
     void onTcpClientDisconnected();
+    void onTcpError(QAbstractSocket::SocketError error);
     void onReadFromServer();
 
 protected:
     void closeEvent(QCloseEvent *event);
     void keyPressEvent(QKeyEvent *event);
+    void initAHRSsensor();
     void initLayout();
     void restoreSettings();
     void saveSettings();
     void createButtons();
     void createPlot();
     bool isStationary();
-    int  openTcpSession();
+    bool openTcpSession();
+    void executeCommand(int iTarget, int iValue);
+    void periodicUpdateWidgets();
 
 private:
     GLWidget*        pGLWidget;
@@ -109,6 +114,11 @@ private:
     bool bMagCalInProgress;
     bool bShowPidInProgress;
     bool bShow3DInProgress;
+    bool bNetworkAvailable;
+
+    QTcpServer*   pTcpServer;
+    QTcpSocket*   pTcpServerConnection;
+    int           serverPort;
 
     // PID
     double Kp;
@@ -122,7 +132,4 @@ private:
     double output;
     double motorSpeedFactorLeft;
     double motorSpeedFactorRight;
-    QTcpServer*   pTcpServer;
-    QTcpSocket*   pTcpServerConnection;
-    int           serverPort;
 };
