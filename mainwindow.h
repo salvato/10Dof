@@ -61,16 +61,20 @@ protected:
     void createPlot();
     bool isStationary();
     bool openTcpSession();
-    void executeCommand(int iTarget, int iValue);
+    void executeCommand(QString sMessage);
     void periodicUpdateWidgets();
 
 private:
-    GLWidget*        pGLWidget;
-    Plot2D*          pPlotVal;
-    PID*             pPid;
-
+    ADXL345*  pAcc;
+    ITG3200*  pGyro;
+    HMC5883L* pMagn;
+    Madgwick* pMadgwick;
+    PID*      pPid;
     //MotorController_L298* pMotorController;
     MotorController_BST7960* pMotorController;
+
+    GLWidget* pGLWidget;
+    Plot2D*   pPlotVal;
 
     QPushButton* buttonAccCalibration;
     QPushButton* buttonGyroCalibration;
@@ -88,11 +92,6 @@ private:
 
     int16_t temperature;
     long pressure;
-
-    ADXL345*  pAcc;
-    ITG3200*  pGyro;
-    HMC5883L* pMagn;
-    Madgwick* pMadgwick;
 
     float GyroXOffset, GyroYOffset, GyroZOffset;
 
@@ -119,6 +118,8 @@ private:
     QTcpServer*   pTcpServer;
     QTcpSocket*   pTcpServerConnection;
     int           serverPort;
+    QByteArray    clientMessage;
+
 
     // PID
     double Kp;

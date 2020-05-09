@@ -86,9 +86,16 @@
 
 
 MainWindow::MainWindow()
-    : pGLWidget(nullptr)
-    , pPlotVal(nullptr)
+    : pAcc(nullptr)
+    , pGyro(nullptr)
+    , pMagn(nullptr)
+    , pMadgwick(nullptr)
     , pPid(nullptr)
+    , pMotorController(nullptr)
+    // Widgets
+    , pGLWidget(nullptr)
+    , pPlotVal(nullptr)
+    // Status Variables
     , bRunInProgress(false)
     , bAccCalInProgress(false)
     , bGyroCalInProgress(false)
@@ -100,24 +107,15 @@ MainWindow::MainWindow()
     , pTcpServer(nullptr)
     , pTcpServerConnection(nullptr)
     , serverPort(43210)
+    // Motor Controller
     , motorSpeedFactorLeft(0.6)
     , motorSpeedFactorRight(0.5)
 {
     restoreSettings();
-
-    if(!openTcpSession()) {
-        qDebug() << QString("Impossible to open a TCP-IP Session !");
-        bNetworkAvailable = true;
-    }
-    else {
-        qDebug() << QString("Waiting for a TCP-IP Connectio !");
-        //bNetworkAvailable = true;
-    }
+    if(openTcpSession()) bNetworkAvailable = true;
 
     initLayout();
-
     initAHRSsensor();
-
 #if defined(L298)
     pMotorController = new MotorController_L298(PWM1_PIN, M1IN1_PIN, M1IN2_PIN,
                                                 PWM2_PIN, M2IN1_PIN, M2IN2_PIN,
@@ -127,7 +125,6 @@ MainWindow::MainWindow()
                                                    PWM2UP_PIN, PWM2LOW_PIN,
                                                    motorSpeedFactorLeft, motorSpeedFactorRight);
 #endif
-
     pPid = new PID(Kp, Ki, Kd, ControllerDirection);
     setpoint = 0.0;
     pPid->SetMode(AUTOMATIC);
@@ -340,20 +337,21 @@ MainWindow::onTcpClientDisconnected() {
 
 void
 MainWindow::onReadFromServer() {
-//    message.append(pTcpServerConnection->readAll());
-//    while(message.length() > 1) {
-//        int iTarget = qint8(message.at(0));
-//        int iValue = qint8(message.at(1));
-//        message.remove(0, 2);
-//        executeCommand(iTarget, iValue);
-//    }
+    clientMessage.append(pTcpServerConnection->readAll());
+    QString sMessage = QString(clientMessage);
+    int32_t iPos = sMessage.indexOf('#');
+    while(iPos > 0) {
+        QString sCommand = sMessage.left(iPos);
+        executeCommand(sCommand);
+        sMessage = sMessage.right(iPos+1);
+        iPos = sMessage.indexOf('#');
+    }
 }
 
 
 void
-MainWindow::executeCommand(int iTarget, int iValue) {
-    Q_UNUSED(iTarget);
-    Q_UNUSED(iValue);
+MainWindow::executeCommand(QString sMessage) {
+    qDebug() << "Received: " << sMessage;
 }
 
 
@@ -361,17 +359,13 @@ void
 MainWindow::periodicUpdateWidgets() {
     if(pTcpServerConnection) {
         if(pTcpServerConnection->isOpen()) {
-//            QString message;
-//            message = QString("box_pos %1 %2 %3 %4 %5 %6 %7 %8#")
-//                    .arg(0)
-//                    .arg(pShimmerSensor->shimmerBox.x)
-//                    .arg(pShimmerSensor->shimmerBox.y)
-//                    .arg(pShimmerSensor->shimmerBox.z)
-//                    .arg(pShimmerSensor->shimmerBox.pos[0])
-//                    .arg(pShimmerSensor->shimmerBox.pos[1])
-//                    .arg(pShimmerSensor->shimmerBox.pos[2])
-//                    .arg(pShimmerSensor->shimmerBox.angle);
-//            pTcpServerConnection->write(message.toLatin1());
+            QString message;
+            message = QString("q %1 %2 %3 %4#")
+                    .arg(q0)
+                    .arg(q1)
+                    .arg(q2)
+                    .arg(q3);
+            pTcpServerConnection->write(message.toLatin1());
         }
     }
 }
@@ -750,12 +744,21 @@ MainWindow::onLoopTimeElapsed() {
 //    pMadgwick->updateIMU(values[3], values[4], values[5],
 //                         values[0], values[1], values[2]);
 
+    input = pMadgwick->getPitch();
+    output = pPid->Compute(input, setpoint);
+    pMotorController->move(output, MIN_ABS_SPEED);
+
     update3D++;
     update3D %= 30;
-    if(!update3D && bShow3DInProgress && !bNetworkAvailable) {
+    if(!update3D && bShow3DInProgress) {
         pMadgwick->getRotation(&q0, &q1, &q2, &q3);
-        pGLWidget->setRotation(q0, q1, q2, q3);
-        pGLWidget->update();
+        if(!bNetworkAvailable) {
+            pGLWidget->setRotation(q0, q1, q2, q3);
+            pGLWidget->update();
+        }
+        else {
+            periodicUpdateWidgets();
+        }
     }
     updatePlot++;
     updatePlot %= 150;
@@ -767,9 +770,6 @@ MainWindow::onLoopTimeElapsed() {
             pPlotVal->UpdatePlot();
         }
     }
-    input = pMadgwick->getPitch();
-    output = pPid->Compute(input, setpoint);
-    pMotorController->move(output, MIN_ABS_SPEED);
     if(bShowPidInProgress && bShow3DInProgress && !bNetworkAvailable) {
         double x = double(now-t0)/1000000.0;
         pPlotVal->NewPoint(4, x, double(input));
