@@ -64,6 +64,7 @@ protected:
     void executeCommand(QString sMessage);
     void periodicUpdateWidgets();
 
+
 private:
     ADXL345*  pAcc;
     ITG3200*  pGyro;

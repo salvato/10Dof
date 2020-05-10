@@ -3,7 +3,6 @@
 
 
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
 #include "plot2d.h"
 #include <QtWidgets>
 #include <QDebug>
@@ -343,14 +342,27 @@ MainWindow::onReadFromServer() {
     while(iPos > 0) {
         QString sCommand = sMessage.left(iPos);
         executeCommand(sCommand);
-        sMessage = sMessage.right(iPos+1);
+        sMessage = sMessage.mid(iPos+1);
         iPos = sMessage.indexOf('#');
     }
+    clientMessage = sMessage.toLatin1();
 }
 
 
 void
 MainWindow::executeCommand(QString sMessage) {
+    if(sMessage == QString("G")) {
+        onStartStopPushed();
+    }
+    if(sMessage == QString("S")) {
+        onStartStopPushed();
+    }
+    if(sMessage == QString("P")) {
+        onShowPidOutput();
+    }
+    if(sMessage == QString("N")) {
+        onShowPidOutput();
+    }
     qDebug() << "Received: " << sMessage;
 }
 
@@ -503,19 +515,23 @@ MainWindow::onStartStopPushed() {
             onStartMagCalibration();
         if(bShowPidInProgress)
             onShowPidOutput();
-        buttonStartStop->setText("Start");
-        buttonAccCalibration->setEnabled(false);
-        buttonGyroCalibration->setEnabled(false);
-        buttonMagCalibration->setEnabled(false);
-        buttonShowPidOutput->setEnabled(false);
+        if(!bNetworkAvailable) {
+            buttonStartStop->setText("Start");
+            buttonAccCalibration->setEnabled(false);
+            buttonGyroCalibration->setEnabled(false);
+            buttonMagCalibration->setEnabled(false);
+            buttonShowPidOutput->setEnabled(false);
+        }
     }
     else {
         bRunInProgress = true;
-        buttonStartStop->setText("Stop");
-        buttonAccCalibration->setEnabled(true);
-        buttonGyroCalibration->setEnabled(true);
-        buttonMagCalibration->setEnabled(true);
-        buttonShowPidOutput->setEnabled(true);
+        if(!bNetworkAvailable) {
+            buttonStartStop->setText("Stop");
+            buttonAccCalibration->setEnabled(true);
+            buttonGyroCalibration->setEnabled(true);
+            buttonMagCalibration->setEnabled(true);
+            buttonShowPidOutput->setEnabled(true);
+        }
         lastUpdate = micros();
         now = lastUpdate;
         update3D = 0;
@@ -540,32 +556,36 @@ MainWindow::onHide3DPushed() {
 void
 MainWindow::onStartAccCalibration() {
     if(bAccCalInProgress) {
-        buttonAccCalibration->setText("Acc. Cal.");
         bAccCalInProgress = false;
-        buttonGyroCalibration->setEnabled(true);
-        buttonMagCalibration->setEnabled(true);
-        buttonShowPidOutput->setEnabled(true);
+        if(!bNetworkAvailable) {
+            buttonAccCalibration->setText("Acc. Cal.");
+            buttonGyroCalibration->setEnabled(true);
+            buttonMagCalibration->setEnabled(true);
+            buttonShowPidOutput->setEnabled(true);
+        }
     }
     else {
-        pPlotVal->ClearDataSet(1);
-        pPlotVal->ClearDataSet(2);
-        pPlotVal->ClearDataSet(3);
-
-        pPlotVal->SetShowDataSet(1, true);
-        pPlotVal->SetShowDataSet(2, true);
-        pPlotVal->SetShowDataSet(3, true);
-        pPlotVal->SetShowDataSet(4, false);
-        pPlotVal->SetShowDataSet(5, false);
-
         bGyroCalInProgress = false;
         bMagCalInProgress = false;
         bShowPidInProgress = false;
         bAccCalInProgress = true;
 
-        buttonAccCalibration->setText("Stop Cal.");
-        buttonGyroCalibration->setDisabled(true);
-        buttonMagCalibration->setDisabled(true);
-        buttonShowPidOutput->setDisabled(true);
+        if(!bNetworkAvailable) {
+            pPlotVal->ClearDataSet(1);
+            pPlotVal->ClearDataSet(2);
+            pPlotVal->ClearDataSet(3);
+
+            pPlotVal->SetShowDataSet(1, true);
+            pPlotVal->SetShowDataSet(2, true);
+            pPlotVal->SetShowDataSet(3, true);
+            pPlotVal->SetShowDataSet(4, false);
+            pPlotVal->SetShowDataSet(5, false);
+
+            buttonAccCalibration->setText("Stop Cal.");
+            buttonGyroCalibration->setDisabled(true);
+            buttonMagCalibration->setDisabled(true);
+            buttonShowPidOutput->setDisabled(true);
+        }
         avgX = avgY = avgZ = 0.0;
         nAvg = 10;
         nCurr = 0;
@@ -577,31 +597,36 @@ MainWindow::onStartAccCalibration() {
 void
 MainWindow::onStartGyroCalibration() {
     if(bGyroCalInProgress) {
-        buttonGyroCalibration->setText("Gyro Cal.");
         bGyroCalInProgress = false;
-        buttonAccCalibration->setEnabled(true);
-        buttonMagCalibration->setEnabled(true);
-        buttonShowPidOutput->setEnabled(true);
+        if(!bNetworkAvailable) {
+            buttonGyroCalibration->setText("Gyro Cal.");
+            buttonAccCalibration->setEnabled(true);
+            buttonMagCalibration->setEnabled(true);
+            buttonShowPidOutput->setEnabled(true);
+        }
     }
     else {
-        pPlotVal->ClearDataSet(1);
-        pPlotVal->ClearDataSet(2);
-        pPlotVal->ClearDataSet(3);
-
-        pPlotVal->SetShowDataSet(1, true);
-        pPlotVal->SetShowDataSet(2, true);
-        pPlotVal->SetShowDataSet(3, true);
-        pPlotVal->SetShowDataSet(4, false);
-        pPlotVal->SetShowDataSet(5, false);
-
         bShowPidInProgress = false;
         bMagCalInProgress = false;
         bAccCalInProgress = false;
         bGyroCalInProgress = true;
-        buttonGyroCalibration->setText("Stop Cal.");
-        buttonAccCalibration->setDisabled(true);
-        buttonMagCalibration->setDisabled(true);
-        buttonShowPidOutput->setDisabled(true);
+
+        if(!bNetworkAvailable) {
+            pPlotVal->ClearDataSet(1);
+            pPlotVal->ClearDataSet(2);
+            pPlotVal->ClearDataSet(3);
+
+            pPlotVal->SetShowDataSet(1, true);
+            pPlotVal->SetShowDataSet(2, true);
+            pPlotVal->SetShowDataSet(3, true);
+            pPlotVal->SetShowDataSet(4, false);
+            pPlotVal->SetShowDataSet(5, false);
+
+            buttonGyroCalibration->setText("Stop Cal.");
+            buttonAccCalibration->setDisabled(true);
+            buttonMagCalibration->setDisabled(true);
+            buttonShowPidOutput->setDisabled(true);
+        }
         angleX = 0.0;
         angleY = 0.0;
         angleZ = 0.0;
@@ -614,30 +639,35 @@ void
 MainWindow::onStartMagCalibration() {
     if(bMagCalInProgress) {
         bMagCalInProgress = false;
-        buttonMagCalibration->setText("Mag. Cal.");
-        buttonAccCalibration->setEnabled(true);
-        buttonGyroCalibration->setEnabled(true);
-        buttonShowPidOutput->setEnabled(true);
+        if(!bNetworkAvailable) {
+            buttonMagCalibration->setText("Mag. Cal.");
+            buttonAccCalibration->setEnabled(true);
+            buttonGyroCalibration->setEnabled(true);
+            buttonShowPidOutput->setEnabled(true);
+        }
     }
     else {
-        pPlotVal->ClearDataSet(1);
-        pPlotVal->ClearDataSet(2);
-        pPlotVal->ClearDataSet(3);
-
-        pPlotVal->SetShowDataSet(1, true);
-        pPlotVal->SetShowDataSet(2, true);
-        pPlotVal->SetShowDataSet(3, true);
-        pPlotVal->SetShowDataSet(4, false);
-        pPlotVal->SetShowDataSet(5, false);
-
-        buttonMagCalibration->setText("Stop Cal.");
         bAccCalInProgress = false;
         bGyroCalInProgress = false;
         bMagCalInProgress = true;
         bShowPidInProgress = false;
-        buttonAccCalibration->setDisabled(true);
-        buttonGyroCalibration->setDisabled(true);
-        buttonShowPidOutput->setDisabled(true);
+
+        if(!bNetworkAvailable) {
+            pPlotVal->ClearDataSet(1);
+            pPlotVal->ClearDataSet(2);
+            pPlotVal->ClearDataSet(3);
+
+            pPlotVal->SetShowDataSet(1, true);
+            pPlotVal->SetShowDataSet(2, true);
+            pPlotVal->SetShowDataSet(3, true);
+            pPlotVal->SetShowDataSet(4, false);
+            pPlotVal->SetShowDataSet(5, false);
+
+            buttonMagCalibration->setText("Stop Cal.");
+            buttonAccCalibration->setDisabled(true);
+            buttonGyroCalibration->setDisabled(true);
+            buttonShowPidOutput->setDisabled(true);
+        }
         t0 = micros();
     }
 }
@@ -647,29 +677,34 @@ void
 MainWindow::onShowPidOutput() {
     if(bShowPidInProgress) {
         bShowPidInProgress = false;
-        buttonShowPidOutput->setText("Show PID");
-        buttonAccCalibration->setEnabled(true);
-        buttonGyroCalibration->setEnabled(true);
-        buttonMagCalibration->setEnabled(true);
+        if(!bNetworkAvailable) {
+            buttonShowPidOutput->setText("Show PID");
+            buttonAccCalibration->setEnabled(true);
+            buttonGyroCalibration->setEnabled(true);
+            buttonMagCalibration->setEnabled(true);
+        }
     }
     else {
-        pPlotVal->ClearDataSet(4);
-        pPlotVal->ClearDataSet(5);
-
-        pPlotVal->SetShowDataSet(1, false);
-        pPlotVal->SetShowDataSet(2, false);
-        pPlotVal->SetShowDataSet(3, false);
-        pPlotVal->SetShowDataSet(4, true);
-        pPlotVal->SetShowDataSet(5, true);
-
-        buttonShowPidOutput->setText("Hide Pid Out");
         bAccCalInProgress  = false;
         bGyroCalInProgress = false;
         bMagCalInProgress  = false;
         bShowPidInProgress = true;
-        buttonAccCalibration->setDisabled(true);
-        buttonGyroCalibration->setDisabled(true);
-        buttonMagCalibration->setDisabled(true);
+
+        if(!bNetworkAvailable) {
+            pPlotVal->ClearDataSet(4);
+            pPlotVal->ClearDataSet(5);
+
+            pPlotVal->SetShowDataSet(1, false);
+            pPlotVal->SetShowDataSet(2, false);
+            pPlotVal->SetShowDataSet(3, false);
+            pPlotVal->SetShowDataSet(4, true);
+            pPlotVal->SetShowDataSet(5, true);
+
+            buttonShowPidOutput->setText("Hide Pid Out");
+            buttonAccCalibration->setDisabled(true);
+            buttonGyroCalibration->setDisabled(true);
+            buttonMagCalibration->setDisabled(true);
+        }
         t0 = micros();
     }
 }
@@ -770,11 +805,25 @@ MainWindow::onLoopTimeElapsed() {
             pPlotVal->UpdatePlot();
         }
     }
-    if(bShowPidInProgress && bShow3DInProgress && !bNetworkAvailable) {
+    if(bShowPidInProgress && bShow3DInProgress) {
         double x = double(now-t0)/1000000.0;
-        pPlotVal->NewPoint(4, x, double(input));
-        pPlotVal->NewPoint(5, x, double(output/Kp));
-//        pPlotVal->NewPoint(4, x, double(input-(output/Kp)));
-//        pPlotVal->NewPoint(5, x, double(output/Kp));
+        if(!bNetworkAvailable) {
+            pPlotVal->NewPoint(4, x, double(input));
+            pPlotVal->NewPoint(5, x, double(output/Kp));
+    //        pPlotVal->NewPoint(4, x, double(input-(output/Kp)));
+    //        pPlotVal->NewPoint(5, x, double(output/Kp));
+        }
+        else {
+            if(pTcpServerConnection) {
+                if(pTcpServerConnection->isOpen()) {
+                    QString message;
+                    message = QString("p %1 %2 %3#")
+                            .arg(x)
+                            .arg(double(input))
+                            .arg(double(output/Kp));
+                    pTcpServerConnection->write(message.toLatin1());
+                }
+            }
+        }
     }
 }
